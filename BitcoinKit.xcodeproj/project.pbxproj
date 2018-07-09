@@ -73,6 +73,7 @@
 		CF432AF620F0ED4500AD4020 /* AddressTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF432AF520F0ED4500AD4020 /* AddressTests.swift */; };
 		CF432AFA20F222B400AD4020 /* AddressFactoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF432AF920F222B400AD4020 /* AddressFactoryTests.swift */; };
 		CF432AFC20F25E0000AD4020 /* TestHelpersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF432AFB20F25E0000AD4020 /* TestHelpersTests.swift */; };
+		CF432B0020F38ACD00AD4020 /* Opcode.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF432AFF20F38ACD00AD4020 /* Opcode.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -156,6 +157,7 @@
 		CF432AF520F0ED4500AD4020 /* AddressTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddressTests.swift; sourceTree = "<group>"; };
 		CF432AF920F222B400AD4020 /* AddressFactoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddressFactoryTests.swift; sourceTree = "<group>"; };
 		CF432AFB20F25E0000AD4020 /* TestHelpersTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestHelpersTests.swift; sourceTree = "<group>"; };
+		CF432AFF20F38ACD00AD4020 /* Opcode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Opcode.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -296,6 +298,7 @@
 				14CDC38B2021EF5000C01556 /* Helpers.swift */,
 				1419E838202CDBE500FCB0BE /* BitcoinKitPrivate.h */,
 				1419E839202CDBE500FCB0BE /* BitcoinKitPrivate.m */,
+				CF432AFF20F38ACD00AD4020 /* Opcode.swift */,
 			);
 			name = Core;
 			sourceTree = "<group>";
@@ -479,6 +482,7 @@
 				141FE2E42022589E00A08B04 /* PrivateKey.swift in Sources */,
 				299CB46F20EE1EA500B1245C /* Transaction+SignatureHash.swift in Sources */,
 				2949920020F227EB00D078B6 /* VersionByte.swift in Sources */,
+				CF432B0020F38ACD00AD4020 /* Opcode.swift in Sources */,
 				14839A85202FE60E00A6CB34 /* InventoryMessage.swift in Sources */,
 				14839AA7202FE7C700A6CB34 /* VarInt.swift in Sources */,
 				14839AAD202FE80400A6CB34 /* ServiceFlags.swift in Sources */,
