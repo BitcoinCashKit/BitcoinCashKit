@@ -24,6 +24,49 @@
 
 import Foundation
 
+public struct Script2 {
+    public let chunks: [ScriptChunk] // An array of NSData objects (pushing data) or NSNumber objects (containing opcodes)
+    public let data: Data // Cached serialized representations for -data and -string methods.
+
+    init(chunks: [ScriptChunk]) {
+        self.chunks = chunks
+        self.data = Data()
+    }
+
+    init(data: Data) throws {
+        // It's important to keep around original data to correctly identify the size of the script for BTC_MAX_SCRIPT_SIZE check
+        // and to correctly calculate hash for the signature because in BitcoinQT scripts are not re-serialized/canonicalized.
+        guard let chunks = Script2.parseData(data) else {
+            throw ScriptError.invalid
+        }
+        self.data = data
+        self.chunks = chunks
+    }
+
+    init(hex: String) throws {
+        try self.init(data: Data(hex: hex)!)
+    }
+
+    init(string: String) throws {
+        guard let chunks = Script2.parseString(string) else {
+            throw ScriptError.invalid
+        }
+        self.init(chunks: chunks)
+    }
+
+    private static func parseData(_ data: Data) -> [ScriptChunk]? {
+        return nil
+    }
+
+    private static func parseString(_ string: String) -> [ScriptError]? {
+        return nil
+    }
+}
+
+public enum ScriptError: Error {
+    case invalid
+}
+
 public struct Script {
     // Opcode
     public static let OP_DUP: UInt8 = 0x76
