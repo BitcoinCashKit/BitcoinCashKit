@@ -23,8 +23,8 @@ public struct ScriptChunk {
     }
 
     // Operation to be executed.
-    public var opcode: Int {
-        return Int(scriptData[range.lowerBound])
+    public var opcode: UInt8 {
+        return UInt8(scriptData[range.lowerBound])
     }
 
     // Pushdata opcodes are not considered a single "opcode".
@@ -156,7 +156,7 @@ public struct ScriptChunk {
         return scriptData   // ToDo
     }
 
-    public func parseChunkFromData(scriptData: Data, offset: Int) -> ScriptChunk? {
+    public static func parseChunkFromData(scriptData: Data, offset: Int) -> ScriptChunk? {
         // Data should fit at least one opcode.
         guard scriptData.count >= (offset + 1) else {
             return nil
@@ -190,5 +190,9 @@ public struct ScriptChunk {
             let range = Range(offset...(offset + MemoryLayout.size(ofValue: opcode)))
             return ScriptChunk(scriptData: scriptData, range: range)
         }
+    }
+
+    internal func copy() -> ScriptChunk {
+        return ScriptChunk(scriptData: scriptData, range: range)
     }
 }
