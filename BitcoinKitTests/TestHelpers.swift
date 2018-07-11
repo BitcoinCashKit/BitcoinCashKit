@@ -120,8 +120,8 @@ public func createUnsignedTx(toAddress: Address, amount: Int64, changeAddress: A
     let toPubKeyHash: Data = toAddress.data
     let changePubkeyHash: Data = changeAddress.data
     
-    let lockingScriptTo = Script.buildPublicKeyHashOut(pubKeyHash: toPubKeyHash)
-    let lockingScriptChange = Script.buildPublicKeyHashOut(pubKeyHash: changePubkeyHash)
+    let lockingScriptTo = KishikawaScript.buildPublicKeyHashOut(pubKeyHash: toPubKeyHash)
+    let lockingScriptChange = KishikawaScript.buildPublicKeyHashOut(pubKeyHash: changePubkeyHash)
     
     let toOutput = TransactionOutput(value: amount, lockingScript: lockingScriptTo)
     let changeOutput = TransactionOutput(value: change, lockingScript: lockingScriptChange)
@@ -141,7 +141,7 @@ public func signTx(unsignedTx: UnsignedTransaction, keys: [PrivateKey]) -> Trans
     // Signing
     let hashType = SighashType.BCH.ALL
     for (i, utxo) in unsignedTx.utxos.enumerated() {
-        let pubkeyHash: Data = Script.getPublicKeyHash(from: utxo.output.lockingScript)
+        let pubkeyHash: Data = KishikawaScript.getPublicKeyHash(from: utxo.output.lockingScript)
         
         let keysOfUtxo: [PrivateKey] = keys.filter { $0.publicKey().pubkeyHash == pubkeyHash }
         guard let key = keysOfUtxo.first else {

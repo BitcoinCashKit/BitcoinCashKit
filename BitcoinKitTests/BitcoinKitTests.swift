@@ -759,8 +759,8 @@ class BitcoinKitTests: XCTestCase {
         let fromPubKeyHash = Crypto.sha256ripemd160(fromPublicKey.raw)
         let toPubKeyHash = Base58.decode(toAddress)!.dropFirst().dropLast(4)
 
-        let lockingScript1 = Script.buildPublicKeyHashOut(pubKeyHash: toPubKeyHash)
-        let lockingScript2 = Script.buildPublicKeyHashOut(pubKeyHash: fromPubKeyHash)
+        let lockingScript1 = KishikawaScript.buildPublicKeyHashOut(pubKeyHash: toPubKeyHash)
+        let lockingScript2 = KishikawaScript.buildPublicKeyHashOut(pubKeyHash: fromPubKeyHash)
 
         let sending = TransactionOutput(value: amount, lockingScript: lockingScript1)
         let payback = TransactionOutput(value: balance - amount - fee, lockingScript: lockingScript2)
@@ -820,11 +820,11 @@ class BitcoinKitTests: XCTestCase {
         let fromPubKeyHash = Crypto.sha256ripemd160(fromPublicKey.raw)
         let toPubKeyHash = Base58.decode(toAddress)!.dropFirst().dropLast(4)
 
-        let lockingScript1 = Script.buildPublicKeyHashOut(pubKeyHash: fromPubKeyHash)
-        let lockingScript2 = Script.buildPublicKeyHashOut(pubKeyHash: toPubKeyHash)
+        let lockingScript1 = KishikawaScript.buildPublicKeyHashOut(pubKeyHash: fromPubKeyHash)
+        let lockingScript2 = KishikawaScript.buildPublicKeyHashOut(pubKeyHash: toPubKeyHash)
 
-        XCTAssertEqual(Script.getPublicKeyHash(from: lockingScript1), fromPubKeyHash)
-        XCTAssertEqual(Script.getPublicKeyHash(from: lockingScript2), toPubKeyHash)
+        XCTAssertEqual(KishikawaScript.getPublicKeyHash(from: lockingScript1), fromPubKeyHash)
+        XCTAssertEqual(KishikawaScript.getPublicKeyHash(from: lockingScript2), toPubKeyHash)
     }
 
     func testBase58_1() {
