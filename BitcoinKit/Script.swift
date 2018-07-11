@@ -183,9 +183,7 @@ public class Script {
 //            [data appendData:d];
 //        }
         for pubkey in publicKeys {
-            //let d: Data = ScriptChunk.scriptDataForPushdata(for pushdata: pubkey, preferredLengthEncoding: -1)
-            let d = Data()
-            guard !d.isEmpty else {
+            guard let d = ScriptChunk.scriptDataForPushdata(data: pubkey.raw, preferredLengthEncoding: -1) else {
                 return nil
             }
             data += d
@@ -488,10 +486,8 @@ public class Script {
 //    return YES;
 //    }
     public var isDataOnly: Bool {
-        for chunk in chunks {
-            if chunk.opcode > Opcode.OP_16 {
-                return false
-            }
+        for chunk in chunks where chunk.opcode > Opcode.OP_16 {
+            return false
         }
         return true
     }
