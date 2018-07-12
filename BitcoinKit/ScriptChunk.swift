@@ -9,7 +9,7 @@
 import Foundation
 
 public struct ScriptChunk {
-    let scriptData: Data // Reference to the whole script binary data.
+    var scriptData: Data // Reference to the whole script binary data.
     var range: Range<Int> // A range of scriptData represented by this chunk.
 
     init(scriptData: Data, range: Range<Int>) {
@@ -179,7 +179,7 @@ public struct ScriptChunk {
     }
 
     // swiftlint:disable:next cyclomatic_complexity
-    public static func parseChunkFromData(scriptData: Data, offset: Int) -> ScriptChunk? {
+    public static func parseChunk(from scriptData: Data, offset: Int) -> ScriptChunk? {
         // Data should fit at least one opcode.
         guard scriptData.count >= (offset + 1) else {
             return nil
