@@ -9,22 +9,12 @@
 import Foundation
 
 public class Script {
-    public var chunks: [ScriptChunk] // An array of NSData objects (pushing data) or NSNumber objects (containing opcodes)
+    public var chunks: [ScriptChunk] // An array of Data objects (pushing data) or UInt8 objects (containing opcodes)
 
+    // TODO: need to be cached
     // Cached serialized representations for -data and -string methods.
-    //    - (NSData*) data {
-    //    if (!_data) {
-    //    // When we calculate data from scratch, it's important to respect actual offsets in the chunks as they may have been copied or shifted in subScript* methods.
-    //    NSMutableData* md = [NSMutableData data];
-    //    for (BTCScriptChunk* chunk in _chunks) {
-    //    [md appendData:chunk.chunkData];
-    //    }
-    //    _data = md;
-    //    }
-    //    return _data;
-    //    }
-    // TODO: キャッシュしたい
     public var data: Data {
+        // When we calculate data from scratch, it's important to respect actual offsets in the chunks as they may have been copied or shifted in subScript* methods.
         var md = Data()
         for chunk in self.chunks {
             md += chunk.chunkData
@@ -69,27 +59,11 @@ public class Script {
     }
 
     convenience init?(address: Address) {
-//        if ([address isKindOfClass:[BTCPublicKeyAddress class]]) {
-//            // OP_DUP OP_HASH160 <hash> OP_EQUALVERIFY OP_CHECKSIG
-//            NSMutableData* resultData = [NSMutableData data];
-//
-//            BTCOpcode prefix[] = {OP_DUP, OP_HASH160};
-//            [resultData appendBytes:prefix length:sizeof(prefix)];
-//
-//            unsigned char length = address.data.length;
-//            [resultData appendBytes:&length length:sizeof(length)];
-//
-//            [resultData appendData:address.data];
-//
-//            BTCOpcode suffix[] = {OP_EQUALVERIFY, OP_CHECKSIG};
-//            [resultData append Bytes:suffix length:sizeof(suffix)];
-//
-//            return [self initWithData:resultData];
-//        }
         var resultData: Data = Data()
 
         switch address.type {
         case .pubkeyHash:
+            // OP_DUP OP_HASH160 <hash> OP_EQUALVERIFY OP_CHECKSIG
             resultData += Opcode.OP_DUP
             resultData += Opcode.OP_HASH160
 
@@ -99,6 +73,7 @@ public class Script {
             resultData += Opcode.OP_EQUALVERIFY
             resultData += Opcode.OP_CHECKSIG
         case .scriptHash:
+            // OP_HASH160 <hash> OP_EQUAL
             resultData += Opcode.OP_HASH160
 
             resultData += VarInt(address.data.count).serialized()
@@ -112,27 +87,19 @@ public class Script {
     }
 
 //    // OP_<M> <pubkey1> ... <pubkeyN> OP_<N> OP_CHECKMULTISIG
-//    - (id) initWithPublicKeys:(NSArray*)publicKeys signaturesRequired:(NSUInteger)signaturesRequired {
     convenience init?(publicKeys: [PublicKey], signaturesRequired: UInt) {
-//        // First make sure the arguments make sense.
-//
-//        // We need at least one signature
-//        if (signaturesRequired == 0) return nil;
+        // First make sure the arguments make sense.
+        // We need at least one signature
         guard signaturesRequired > 0 else {
             return nil
         }
-//
-//        // And we cannot have more signatures than available pubkeys.
-//        if (signaturesRequired > publicKeys.count) return nil;
+
+        // And we cannot have more signatures than available pubkeys.
         guard publicKeys.count > signaturesRequired else {
             return nil
         }
-//
-//        // Both M and N should map to OP_<1..16>
-//        BTCOpcode m_opcode = BTCOpcodeForSmallInteger(signaturesRequired);
-//        BTCOpcode n_opcode = BTCOpcodeForSmallInteger(publicKeys.count);
-//        if (m_opcode == OP_INVALIDOPCODE) return nil;
-//        if (n_opcode == OP_INVALIDOPCODE) return nil;
+
+        // Both M and N should map to OP_<1..16>
         let mOpcode: UInt8 = Opcode.opcodeForSmallInteger(smallInteger: Int(signaturesRequired))
         let nOpcode: UInt8 = Opcode.opcodeForSmallInteger(smallInteger: publicKeys.count)
 
@@ -143,75 +110,28 @@ public class Script {
             return nil
         }
 
-//        // Every pubkey should be present.
-//        for (NSData* pkdata in publicKeys) {
-//            if (![pkdata isKindOfClass:[NSData class]] || pkdata.length == 0) return nil;
-//        }
-//        for pubkey in publicKeys {
-//            guard !pubkey.raw.isEmpty else {
-//                return nil
-//            }
-//        }
-
-//
-//        NSMutableData* data = [NSMutableData data];
-//
-//        [data appendBytes:&m_opcode length:sizeof(m_opcode)];
         var data: Data = Data()
         data += mOpcode
-//
-//        for (NSData* pubkey in publicKeys) {
-//            NSData* d = [BTCScriptChunk scriptDataForPushdata:pubkey preferredLengthEncoding:-1];
-//
-//            if (d.length == 0) return nil; // invalid data
-//
-//            [data appendData:d];
-//        }
+
         for pubkey in publicKeys {
-            guard let d = ScriptChunk.scriptDataForPushdata(data: pubkey.raw, preferredLengthEncoding: -1) else {
-                return nil
+            guard let d = ScriptChunk.scriptData(for: pubkey.raw, preferredLengthEncoding: -1) else {
+                return nil // invalid data
             }
             data += d
         }
 
-//        [data appendBytes:&n_opcode length:sizeof(n_opcode)];
-//
-//        BTCOpcode checkmultisig_opcode = OP_CHECKMULTISIG;
-//        [data appendBytes:&checkmultisig_opcode length:sizeof(checkmultisig_opcode)];
         data += nOpcode
         data += Opcode.OP_CHECKMULTISIG
-
-//
-//        if (self = [self initWithData:data]) {
-//            _multisigSignaturesRequired = signaturesRequired;
-//            _multisigPublicKeys = publicKeys;
-//        }
-//        return self;
 
         self.init(data: data)   // TODO: init出来なかった時の挙動を確認する
         self.multisig = (signaturesRequired, publicKeys)
     }
 
-//    - (NSString*) hex {
-//    return BTCHexFromData(self.data);
-//    }
     public var hex: String {
         return self.data.hex
     }
 
-//    - (NSString*) string {
-//    if (!_string) {
-//    NSMutableArray* buffer = [NSMutableArray array];
-//
-//    for (BTCScriptChunk* chunk in _chunks) {
-//    [buffer addObject:[chunk string]];
-//    }
-//
-//    _string = [buffer componentsJoinedByString:@" "];
-//    }
-//    return _string;
-//    }
-    // キャッシュしたい
+    // TODO: need to be cached
     public var string: String {
         var buffer = [String]()
         for chunk in self.chunks {
@@ -222,34 +142,18 @@ public class Script {
         return buffer.joined(separator: " ")
     }
 
-//    - (NSMutableArray*) parseData:(NSData*)data {
     private static func parseData(_ data: Data) -> [ScriptChunk]? {
-//    if (data.length == 0) return [NSMutableArray array];
         guard !data.isEmpty else {
             return [ScriptChunk]()
         }
-//
-//    NSMutableArray* chunks = [NSMutableArray array];
+
         var chunks = [ScriptChunk]()
-//
-//    int i = 0;
-//    int length = (int)data.length;
+
         var i: Int = 0
         let count: Int = data.count
-//
-//    while (i < length) {
-//    BTCScriptChunk* chunk = [BTCScriptChunk parseChunkFromData:data offset:i];
-//
-//    // Exit if failed to parse
-//    if (!chunk) return nil;
-//
-//    [chunks addObject:chunk];
-//
-//    i += chunk.range.length;
-//    }
-//    return chunks;
-//    }
+
         while i < count {
+            // Exit if failed to parse
             guard let chunk = ScriptChunk.parseChunkFromData(scriptData: data, offset: i) else {
                 return nil
             }
@@ -265,12 +169,6 @@ public class Script {
         return nil
     }
 
-//    - (BOOL) isStandard {
-//    return [self isPayToPublicKeyHashScript]
-//    || [self isPayToScriptHashScript]
-//    || [self isPublicKeyScript]
-//    || [self isStandardMultisignatureScript];
-//    }
     public var isStandard: Bool {
         return isPayToPublicKeyHashScript
             || isPayToScriptHashScript
@@ -278,11 +176,6 @@ public class Script {
             || isStandardMultisignatureScript
     }
 
-//    - (BOOL) isPublicKeyScript {
-//    if (_chunks.count != 2) return NO;
-//    return [self pushdataAtIndex:0].length > 1
-//    && [self opcodeAtIndex:1] == OP_CHECKSIG;
-//    }
     public var isPublicKeyScript: Bool {
         guard chunks.count == 2 else {
             return false
@@ -293,18 +186,6 @@ public class Script {
         return pushdata.count > 1 && opcode(at: 1) == Opcode.OP_CHECKSIG
     }
 
-//    - (BOOL) isPayToPublicKeyHashScript {
-//    if (_chunks.count != 5) return NO;
-//
-//    BTCScriptChunk* dataChunk = [self chunkAtIndex:2];
-//
-//    return [self opcodeAtIndex:0] == OP_DUP
-//    && [self opcodeAtIndex:1] == OP_HASH160
-//    && !dataChunk.isOpcode
-//    && dataChunk.range.length == 21
-//    && [self opcodeAtIndex:3] == OP_EQUALVERIFY
-//    && [self opcodeAtIndex:4] == OP_CHECKSIG;
-//    }
     public var isPayToPublicKeyHashScript: Bool {
         guard chunks.count == 5 else {
             return false
@@ -318,20 +199,9 @@ public class Script {
             && opcode(at: 4) == Opcode.OP_CHECKSIG
     }
 
-//    - (BOOL) isPayToScriptHashScript {
-//    // TODO: check against the original serialized form instead of parsed chunks because BIP16 defines
-//    // P2SH script as an exact byte template. Scripts using OP_PUSHDATA1/2/4 are not valid P2SH scripts.
-//    // To do that we have to maintain original script binary data and each chunk should keep a range in that data.
-//
-//    if (_chunks.count != 3) return NO;
-//
-//    BTCScriptChunk* dataChunk = [self chunkAtIndex:1];
-//
-//    return [self opcodeAtIndex:0] == OP_HASH160
-//    && !dataChunk.isOpcode
-//    && dataChunk.range.length == 21          // this is enough to match the exact byte template, any other encoding will be larger.
-//    && [self opcodeAtIndex:2] == OP_EQUAL;
-//    }
+    // TODO: check against the original serialized form instead of parsed chunks because BIP16 defines
+    // P2SH script as an exact byte template. Scripts using OP_PUSHDATA1/2/4 are not valid P2SH scripts.
+    // To do that we have to maintain original script binary data and each chunk should keep a range in that data.
     public var isPayToScriptHashScript: Bool {
         guard chunks.count == 3 else {
             return false
@@ -339,19 +209,12 @@ public class Script {
         let dataChunk = chunk(at: 1)
         return opcode(at: 0) == Opcode.OP_HASH160
             && !dataChunk.isOpcode
-            && pushedData(at: 1)?.count == 20
+            && pushedData(at: 1)?.count == 20 // this is enough to match the exact byte template, any other encoding will be larger.
             && opcode(at: 2) == Opcode.OP_EQUAL
     }
 
-//    // Returns YES if the script ends with P2SH check.
-//    // Not used in CoreBitcoin. Similar code is used in bitcoin-ruby. I don't know if we'll ever need it.
-//    - (BOOL) endsWithPayToScriptHash {
-//    if (_chunks.count < 3) return NO;
-//
-//    return [self opcodeAtIndex:-3] == OP_HASH160
-//    && [self pushdataAtIndex:-2].length == 20
-//    && [self opcodeAtIndex:-1] == OP_EQUAL;
-//    }
+    // Returns true if the script ends with P2SH check.
+    // Not used in CoreBitcoin. Similar code is used in bitcoin-ruby. I don't know if we'll ever need it.
     public var endsWithPayToScriptHash: Bool {
         guard chunks.count >= 3 else {
             return false
@@ -361,10 +224,6 @@ public class Script {
             && opcode(at: -1) == Opcode.OP_EQUAL
     }
 
-//    - (BOOL) isStandardMultisignatureScript {
-//    if (![self isMultisignatureScript]) return NO;
-//    return _multisigPublicKeys.count <= 3;
-//    }
     public var isStandardMultisignatureScript: Bool {
         guard isMultisignatureScript else {
             return false
@@ -375,12 +234,6 @@ public class Script {
         return multisigPublicKeys.count <= 3
     }
 
-//    - (BOOL) isMultisignatureScript {
-//    if (_multisigSignaturesRequired == 0) {
-//    [self detectMultisigScript];
-//    }
-//    return _multisigSignaturesRequired > 0;
-//    }
     public var isMultisignatureScript: Bool {
         if multisig?.nSingRequired == 0 {
             detectMultisigScript()
@@ -391,52 +244,35 @@ public class Script {
         return nSingRequired > 0
     }
 
-//    // If typical multisig tx is detected, sets two ivars:
-//    // _multisigSignaturesRequired, _multisigPublicKeys.
-//    - (void) detectMultisigScript {
+    // If typical multisig tx is detected, sets two ivars:
     private func detectMultisigScript() {
-//    // multisig script must have at least 4 ops ("OP_1 <pubkey> OP_1 OP_CHECKMULTISIG")
-//    if (_chunks.count < 4) return;
+        // multisig script must have at least 4 ops ("OP_1 <pubkey> OP_1 OP_CHECKMULTISIG")
         guard chunks.count >= 4 else {
             return
         }
-//
-//    // The last op is multisig check.
-//    if ([self opcodeAtIndex:-1] != OP_CHECKMULTISIG) return;
+
+        // The last op is multisig check.
         guard opcode(at: -1) == Opcode.OP_CHECKMULTISIG else {
             return
         }
-//
-//    BTCOpcode m_opcode = [self opcodeAtIndex:0];
-//    BTCOpcode n_opcode = [self opcodeAtIndex:-2];
+
         let mOpcode: UInt8 = opcode(at: 0)
         let nOpcode: UInt8 = opcode(at: -2)
-//
-//    NSInteger m = BTCSmallIntegerFromOpcode(m_opcode);
-//    NSInteger n = BTCSmallIntegerFromOpcode(n_opcode);
-//    if (m <= 0 || m == NSIntegerMax) return;
-//    if (n <= 0 || n == NSIntegerMax || n < m) return;
+
         let m: Int = Opcode.smallIntegerFromOpcode(opcode: mOpcode)
         let n: Int = Opcode.smallIntegerFromOpcode(opcode: nOpcode)
+
         guard m > 0 && m != Int.max else {
             return
         }
         guard n > 0 && n != Int.max && n >= m else {
             return
         }
-//
-//    // We must have correct number of pubkeys in the script. 3 extra ops: OP_<M>, OP_<N> and OP_CHECKMULTISIG
-//    if (_chunks.count != (3 + n)) return;
+
+        // We must have correct number of pubkeys in the script. 3 extra ops: OP_<M>, OP_<N> and OP_CHECKMULTISIG
         guard chunks.count == 3 + n else {
             return
         }
-//
-//    NSMutableArray* list = [NSMutableArray array];
-//    for (int i = 1; i <= n; i++) {
-//    NSData* data = [self pushdataAtIndex:i];
-//    if (!data) return;
-//    [list addObject:data];
-//    }
 
         var pubkeys: [PublicKey] = []
         for i in 0...n {
@@ -446,55 +282,21 @@ public class Script {
             let pubkey = PublicKey(bytes: data, network: .mainnet)
             pubkeys.append(pubkey)
         }
-//
-//    // Now we extracted all pubkeys and verified the numbers.
-//    _multisigSignaturesRequired = m;
-//    _multisigPublicKeys = list;
-//    }
+
+        // Now we extracted all pubkeys and verified the numbers.
         multisig?.nSingRequired = UInt(m)
         multisig?.publickeys = pubkeys
     }
 
-//    - (BOOL) isDataOnly {
-//    // Include both PUSHDATA ops and OP_0..OP_16 literals.
-//    for (BTCScriptChunk* chunk in _chunks) {
-//    if (chunk.opcode > OP_16) {
-//    return NO;
-//    }
-//    }
-//    return YES;
-//    }
+    // Include both PUSHDATA ops and OP_0..OP_16 literals.
     public var isDataOnly: Bool {
         return !chunks.contains { $0.opcode > Opcode.OP_16 }
     }
 
-//    - (NSArray*) scriptChunks {
-//    return [_chunks copy];
-//    }
     public var scriptChunks: [ScriptChunk] {
         return chunks
     }
 
-//    - (void) enumerateOperations:(void(^)(NSUInteger opIndex, BTCOpcode opcode, NSData* pushdata, BOOL* stop))block {
-//    if (!block) return;
-//
-//    NSUInteger opIndex = 0;
-//    for (BTCScriptChunk* chunk in _chunks) {
-//    if (chunk.isOpcode) {
-//    BTCOpcode opcode = chunk.opcode;
-//    BOOL stop = NO;
-//    block(opIndex, opcode, nil, &stop);
-//    if (stop) return;
-//    } else {
-//    NSData* data = chunk.pushdata;
-//    BOOL stop = NO;
-//    block(opIndex, OP_INVALIDOPCODE, data, &stop);
-//    if (stop) return;
-//    }
-//    opIndex++;
-//    }
-//    }
-    // blockでstopの値を変更しているので、blockの返り値で新しいstopの値を取るようにしています
     public func enumerateOperations(block: ((_ opIndex: Int, _ opcode: UInt8, _ pushData: Data?) -> Bool)?) {
         guard let block = block else {
             return
@@ -512,26 +314,6 @@ public class Script {
         }
     }
 
-//    - (BTCAddress*) standardAddress {
-//    if ([self isPayToPublicKeyHashScript]) {
-//    if (_chunks.count != 5) return nil;
-//
-//    BTCScriptChunk* dataChunk = [self chunkAtIndex:2];
-//
-//    if (!dataChunk.isOpcode && dataChunk.range.length == 21) {
-//    return [BTCPublicKeyAddress addressWithData:dataChunk.pushdata];
-//    }
-//    } else if ([self isPayToScriptHashScript]) {
-//    if (_chunks.count != 3) return nil;
-//
-//    BTCScriptChunk* dataChunk = [self chunkAtIndex:1];
-//
-//    if (!dataChunk.isOpcode && dataChunk.range.length == 21) {
-//    return [BTCScriptHashAddress addressWithData:dataChunk.pushdata];
-//    }
-//    }
-//    return nil;
-//    }
     public var standardAddress: Address? {
         if isPayToPublicKeyHashScript {
             guard chunks.count == 5 else {
@@ -558,62 +340,33 @@ public class Script {
         return nil
     }
 
-    // TODO: Addressでdata, type, networkを引数にとるinitializerが必要
-    /*
+    // TODO: not implemented
+    // need to create initializer of Address which takes data, type and network as its args
     // Wraps the recipient into an output P2SH script (OP_HASH160 <20-byte hash of the recipient> OP_EQUAL).
-    - (BTCScript*) scriptHashScript {
-    return [[BTCScript alloc] initWithAddress:[self scriptHashAddress]];
+    public func scriptHashScript() -> Script? {
+        return nil
     }
-    
-    // Returns BTCScriptHashAddress that hashes this script.
-    // Equivalent to [[script scriptHashScript] standardAddress] or [BTCScriptHashAddress addressWithData:BTCHash160(script.data)]
-    - (BTCScriptHashAddress*) scriptHashAddress {
-    return [BTCScriptHashAddress addressWithData:BTCHash160(self.data)];
-    }
-    
-    - (BTCScriptHashAddressTestnet*) scriptHashAddressTestnet {
-    return [BTCScriptHashAddressTestnet addressWithData:BTCHash160(self.data)];
-    }
-    */
 
-//    - (BTCScriptChunk*) chunkAtIndex:(NSInteger)index {
-//    BTCScriptChunk* chunk = _chunks[index < 0 ? (_chunks.count + index) : index];
-//    return chunk;
-//    }
     // Raise exception if index is out of bounds
     public func chunk(at index: Int) -> ScriptChunk {
         return chunks[index < 0 ? chunks.count + index : index]
     }
 
-//    // Returns an opcode in a chunk.
-//    // If the chunk is data, not an opcode, returns OP_INVALIDOPCODE
-//    // Raises exception if index is out of bounds.
-//    - (BTCOpcode) opcodeAtIndex:(NSInteger)index {
-//    BTCScriptChunk* chunk = _chunks[index < 0 ? (_chunks.count + index) : index];
-//
-//    if (chunk.isOpcode) return chunk.opcode;
-//
-//    // If the chunk is not actually an opcode, return invalid opcode.
-//    return OP_INVALIDOPCODE;
-//    }
+    // Returns an opcode in a chunk.
+    // If the chunk is data, not an opcode, returns OP_INVALIDOPCODE
+    // Raises exception if index is out of bounds.
     public func opcode(at index: Int) -> UInt8 {
         let chunk = self.chunk(at: index)
+        // If the chunk is not actually an opcode, return invalid opcode.
         guard chunk.isOpcode else {
             return Opcode.OP_INVALIDOPCODE
         }
         return chunk.opcode
     }
 
-//    // Returns NSData in a chunk.
-//    // If chunk is actually an opcode, returns nil.
-//    // Raises exception if index is out of bounds.
-//    - (NSData*) pushdataAtIndex:(NSInteger)index {
-//    BTCScriptChunk* chunk = _chunks[index < 0 ? (_chunks.count + index) : index];
-//
-//    if (chunk.isOpcode) return nil;
-//
-//    return chunk.pushdata;
-//    }
+    // Returns NSData in a chunk.
+    // If chunk is actually an opcode, returns nil.
+    // Raises exception if index is out of bounds.
     public func pushedData(at index: Int) -> Data? {
         let chunk = self.chunk(at: index)
         guard !chunk.isOpcode else {

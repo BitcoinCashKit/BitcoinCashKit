@@ -17,47 +17,23 @@ public struct ScriptChunk {
         self.range = range
     }
 
-//     Operation to be executed.
-//    - (BTCOpcode) opcode {
-//    return (BTCOpcode)((const unsigned char*)_scriptData.bytes)[_range.location];
-//    }
+    // Operation to be executed.
     public var opcode: UInt8 {
         return UInt8(scriptData[range.lowerBound])
     }
 
-//    - (BOOL) isOpcode {
-//    BTCOpcode opcode = [self opcode];
-//    // Pushdata opcodes are not considered a single "opcode".
-//    // Attention: OP_0 is also "pushdata" code that pushes empty data.
-//    if (opcode <= OP_PUSHDATA4) return NO;
-//    return YES;
-//    }
+    // Pushdedata opcodes are not considered a single "opcode".
+    // Attention: OP_0 is also "pushdata" code that pushes empty data.
     public var isOpcode: Bool {
         return opcode > Opcode.OP_PUSHDATA4
     }
 
-//    - (NSData*) chunkData {
-//    return [_scriptData subdataWithRange:_range];
-//    }
     // Portion of scriptData defined by range.
     public var chunkData: Data {
         return scriptData.subdata(in: range)
     }
 
-//    // Data being pushed. Returns nil if the opcode is not OP_PUSHDATA*.
-//    - (NSData*) pushdata {
-//    if (self.isOpcode) return nil;
-//    BTCOpcode opcode = [self opcode];
-//    NSUInteger loc = 1;
-//    if (opcode == OP_PUSHDATA1) {
-//    loc += 1;
-//    } else if (opcode == OP_PUSHDATA2) {
-//    loc += 2;
-//    } else if (opcode == OP_PUSHDATA4) {
-//    loc += 4;
-//    }
-//    return [_scriptData subdataWithRange:NSMakeRange(_range.location + loc, _range.length - loc)];
-//    }
+    // Data being pushed. Returns nil if the opcode is not OP_PUSHDATA*.
     public var pushedData: Data? {
         guard !isOpcode else {
             return nil
@@ -76,17 +52,7 @@ public struct ScriptChunk {
         return scriptData.subdata(in: Range((range.lowerBound + loc)...(range.upperBound)))
     }
 
-//    // Returns YES if the data is represented with the most compact opcode.
-//    - (BOOL) isDataCompact {
-//    if (self.isOpcode) return NO;
-//    BTCOpcode opcode = [self opcode];
-//    NSData* data = [self pushdata];
-//    if (opcode < OP_PUSHDATA1) return YES; // length fits in one byte under OP_PUSHDATA1.
-//    if (opcode == OP_PUSHDATA1) return data.length >= OP_PUSHDATA1; // length should be less than OP_PUSHDATA1
-//    if (opcode == OP_PUSHDATA2) return data.length > 0xff; // length should not fit in one byte
-//    if (opcode == OP_PUSHDATA4) return data.length > 0xffff; // length should not fit in two bytes
-//    return NO;
-//    }
+    // Returns true if the data is represented with the most compact opcode.
     public var isDataCompact: Bool {
         guard !isOpcode else {
             return false
@@ -96,13 +62,13 @@ public struct ScriptChunk {
         }
         switch opcode {
         case ...Opcode.OP_PUSHDATA1:
-            return true
+            return true // length fits in one byte under OP_PUSHDATA1.
         case Opcode.OP_PUSHDATA1:
-            return data.count >= Opcode.OP_PUSHDATA1
+            return data.count >= Opcode.OP_PUSHDATA1 // length should be less than OP_PUSHDATA1
         case Opcode.OP_PUSHDATA2:
-            return data.count > (0xff)
+            return data.count > (0xff) // length should not fit in one byte
         case Opcode.OP_PUSHDATA4:
-            return data.count > (0xffff)
+            return data.count > (0xffff) // length should not fit in two bytes
         default:
             return false
         }
@@ -124,35 +90,8 @@ public struct ScriptChunk {
     // So forget about relying on parsing this thing exactly. Typically, we either have very small numbers (0..16),
     // or very big numbers (hashes and pubkeys).
     public var string: String? {
-//        if (self.isOpcode) {
-//            if (opcode == OP_0) return @"OP_0";
-//            if (opcode == OP_1NEGATE) return @"OP_1NEGATE";
-//            if (opcode >= OP_1 && opcode <= OP_16) {
-//                return [NSString stringWithFormat:@"OP_%u", ((int)opcode + 1 - (int)OP_1)];
-//            } else {
-//                return BTCNameForOpcode(opcode);
-//            }
-//        }
         if isOpcode {
             return Opcode.getOpcodeName(with: opcode)
-
-//        else {
-//            NSData* data = [self pushdata];
-//
-//            NSString* string = nil;
-//            // Empty data is encoded as OP_0.
-//            if (data.length == 0) {
-//                string = @"OP_0";
-//            } else if ([self isASCIIData:data]) {
-//                string = [[NSString alloc] initWithData:data encoding:NSASCIIStringEncoding];
-//
-//                // Escape escapes & single quote characters.
-//                string = [string stringByReplacingOccurrencesOfString:@"\\" withString:@"\\\\"];
-//                string = [string stringByReplacingOccurrencesOfString:@"'" withString:@"\\'"];
-//
-//                // Wrap in single quotes. Why not double? Because they are already used in JSON and we don't want to multiply the mess.
-//                string = [NSString stringWithFormat:@"'%@'", string];
-//            }
         } else {
             var string: String
             guard let data = pushedData, !data.isEmpty else {
@@ -168,15 +107,6 @@ public struct ScriptChunk {
 
                 // Wrap in single quotes. Why not double? Because they are already used in JSON and we don't want to multiply the mess.
                 string = "'" + string + "'"
-
-//            else {
-//                string = BTCHexFromData(data);
-//
-//                // Shorter than 128-bit chunks are wrapped in square brackets to avoid ambiguity with big all-decimal numbers.
-//                if (data.length < 16) {
-//                    string = [NSString stringWithFormat:@"[%@]", string];
-//                }
-//            }
             } else {
                 string = data.hex
 
@@ -185,15 +115,6 @@ public struct ScriptChunk {
                     string = "[\(string)]"
                 }
             }
-
-//            // Non-compact data is prefixed with an appropriate length prefix.
-//            if (![self isDataCompact]) {
-//                int prefix = 1;
-//                if (opcode == OP_PUSHDATA2) prefix = 2;
-//                if (opcode == OP_PUSHDATA4) prefix = 4;
-//                string = [NSString stringWithFormat:@"%d:%@", prefix, string];
-//            }
-//            return string;
             // Non-compact data is prefixed with an appropriate length prefix.
             if !isDataCompact {
                 var prefix = 1
@@ -208,17 +129,6 @@ public struct ScriptChunk {
         }
     }
 
-//    - (BOOL) isASCIIData:(NSData*)data {
-//    BOOL isASCII = YES;
-//    for (int i = 0; i < data.length; i++) {
-//    char ch = ((const char*)data.bytes)[i];
-//    if (!(ch >= 0x20 && ch <= 0x7E)) {
-//    isASCII = NO;
-//    break;
-//    }
-//    }
-//    return isASCII;
-//    }
     private func isASCIIData(data: Data) -> Bool {
         for ch in data {
             if !(ch >= 0x20 && ch <= 0x7E) {
@@ -231,32 +141,18 @@ public struct ScriptChunk {
     // If encoding is -1, then the most compact will be chosen.
     // Valid values: -1, 0, 1, 2, 4.
     // Returns nil if preferredLengthEncoding can't be used for data, or data is nil or too big.
-//    + (NSData*) scriptDataForPushdata:(NSData*)data preferredLengthEncoding:(int)preferredLengthEncoding {
-    public static func scriptDataForPushdata(data: Data?, preferredLengthEncoding: Int) -> Data? {
-//        if (!data) return nil;
-        guard let data = data else {
+    public static func scriptData(for pushedData: Data?, preferredLengthEncoding: Int) -> Data? {
+        guard let data = pushedData else {
             return nil
         }
-//        NSMutableData* scriptData = [NSMutableData data];
+
         var scriptData: Data = Data()
 
-//        if (data.length < OP_PUSHDATA1 && preferredLengthEncoding <= 0) {
-//            uint8_t len = data.length;
-//            [scriptData appendBytes:&len length:sizeof(len)];
-//            [scriptData appendData:data];
-//        }
         if data.count < Opcode.OP_PUSHDATA1 && preferredLengthEncoding <= 0 {
             let count: Int = data.count
             scriptData += count
             scriptData += data
 
-//        else if (data.length <= 0xff && (preferredLengthEncoding == -1 || preferredLengthEncoding == 1)) {
-//            uint8_t op = OP_PUSHDATA1;
-//            uint8_t len = data.length;
-//            [scriptData appendBytes:&op length:sizeof(op)];
-//            [scriptData appendBytes:&len length:sizeof(len)];
-//            [scriptData appendData:data];
-//        }
         } else if data.count <= (0xff) && (preferredLengthEncoding == -1 || preferredLengthEncoding == 1) {
             let opcode: UInt8 = Opcode.OP_PUSHDATA1
             let count: Int = data.count
@@ -269,7 +165,6 @@ public struct ScriptChunk {
             scriptData += opcode
             scriptData += count
             scriptData += data
-            // QESTION: (unsigned long long)data.length <= 0xffffffffull は以下のような変換で良いのか
         } else if UInt64(data.count) <= 0xffffffff && (preferredLengthEncoding == -1 || preferredLengthEncoding == 4) {
             let opcode: UInt8 = Opcode.OP_PUSHDATA4
             let count: Int = data.count
@@ -283,37 +178,19 @@ public struct ScriptChunk {
         return scriptData
     }
 
-//    + (BTCScriptChunk*) parseChunkFromData:(NSData*)scriptData offset:(NSUInteger)offset {
     // swiftlint:disable:next cyclomatic_complexity
     public static func parseChunkFromData(scriptData: Data, offset: Int) -> ScriptChunk? {
-//    // Data should fit at least one opcode.
-//    if (scriptData.length < (offset + 1)) return nil;
+        // Data should fit at least one opcode.
         guard scriptData.count >= (offset + 1) else {
             return nil
         }
-//
-//    const uint8_t* bytes = ((const uint8_t*)[scriptData bytes]);
-//    BTCOpcode opcode = bytes[offset];
+
         let opcode: UInt8 = scriptData[offset]
 
-//        if (opcode <= OP_PUSHDATA4) {
-//            // push data opcode
-//            int length = (int)scriptData.length;
-//
-//            BTCScriptChunk* chunk = [[BTCScriptChunk alloc] init];
-//            chunk.scriptData = scriptData;
         if opcode <= Opcode.OP_PUSHDATA4 {
             let count: Int = scriptData.count
             let range: Range<Int>
 
-//            if (opcode < OP_PUSHDATA1) {
-//                uint8_t dataLength = opcode;
-//                NSUInteger chunkLength = sizeof(opcode) + dataLength;
-//
-//                if (offset + chunkLength > length) return nil;
-//
-//                chunk.range = NSMakeRange(offset, chunkLength);
-//            }
             if opcode < Opcode.OP_PUSHDATA1 {
                 let dataLength = opcode
                 let chunkLength = MemoryLayout.size(ofValue: opcode) + Int(dataLength)
@@ -322,20 +199,6 @@ public struct ScriptChunk {
                     return nil
                 }
                 range = Range(offset..<offset + chunkLength)
-
-//                else if (opcode == OP_PUSHDATA1) {
-//                    uint8_t dataLength;
-//
-//                    if (offset + sizeof(dataLength) > length) return nil;
-//
-//                    memcpy(&dataLength, bytes + offset + sizeof(opcode), sizeof(dataLength));
-//
-//                    NSUInteger chunkLength = sizeof(opcode) + sizeof(dataLength) + dataLength;
-//
-//                    if (offset + chunkLength > length) return nil;
-//
-//                    chunk.range = NSMakeRange(offset, chunkLength);
-//                }
             } else if opcode == Opcode.OP_PUSHDATA1 {
                 var dataLength = UInt8()
                 guard offset + MemoryLayout.size(ofValue: dataLength) <= count else {
@@ -371,8 +234,7 @@ public struct ScriptChunk {
                 _ = scriptData.withUnsafeBytes {
                     memcpy(&dataLength, $0 + offset + MemoryLayout.size(ofValue: opcode), MemoryLayout.size(ofValue: dataLength))
                 }
-                // QUESTION: dataLength = CFSwapInt16LittleToHost(dataLength)になっているがInt32の間違い？
-                dataLength = CFSwapInt32LittleToHost(dataLength)
+                dataLength = CFSwapInt32LittleToHost(dataLength) // CoreBitcoin uses CFSwapInt16LittleToHost(dataLength)
                 let chunkLength = MemoryLayout.size(ofValue: opcode) + MemoryLayout.size(ofValue: dataLength) + Int(dataLength)
                 guard offset + chunkLength <= count else {
                     return nil
@@ -383,15 +245,8 @@ public struct ScriptChunk {
                             // because opcode is surely OP_PUSHDATA1, OP_PUSHDATA2, or OP_PUSHDATA4
             }
             return ScriptChunk(scriptData: scriptData, range: range)
-
-//        else {
-//            // simple opcode
-//            BTCScriptChunk* chunk = [[BTCScriptChunk alloc] init];
-//            chunk.scriptData = scriptData;
-//            chunk.range = NSMakeRange(offset, sizeof(opcode));
-//            return chunk;
-//        }
         } else {
+            // simple opcode
             let range = Range(offset..<offset + MemoryLayout.size(ofValue: opcode))
             let chunk = ScriptChunk(scriptData: scriptData, range: range)
             return chunk
