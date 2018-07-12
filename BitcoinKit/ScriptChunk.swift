@@ -12,11 +12,6 @@ public struct ScriptChunk {
     let scriptData: Data // Reference to the whole script binary data.
     var range: Range<Int> // A range of scriptData represented by this chunk.
 
-    init(scriptData: Data) {
-        self.scriptData = scriptData
-        self.range = Range(-1...0) // ToDo: 適当な値を入れたい。
-    }
-
     init(scriptData: Data, range: Range<Int>) {
         self.scriptData = scriptData
         self.range = range
@@ -63,7 +58,7 @@ public struct ScriptChunk {
 //    }
 //    return [_scriptData subdataWithRange:NSMakeRange(_range.location + loc, _range.length - loc)];
 //    }
-    public var pushData: Data? {
+    public var pushedData: Data? {
         guard !isOpcode else {
             return nil
         }
@@ -96,7 +91,7 @@ public struct ScriptChunk {
         guard !isOpcode else {
             return false
         }
-        guard let data = pushData else {
+        guard let data = pushedData else {
             return false
         }
         switch opcode {
@@ -139,16 +134,7 @@ public struct ScriptChunk {
 //            }
 //        }
         if isOpcode {
-            switch opcode {
-            case Opcode.OP_0:
-                return "OP_0"
-            case Opcode.OP_1NEGATE:
-                return "OP_1NEGATE"
-            case Opcode.OP_1...Opcode.OP_16:
-                return "OP_\(opcode + 1 - Opcode.OP_1)"
-            default:
-                return Opcode.getOpcodeName(with: opcode)
-            }
+            return Opcode.getOpcodeName(with: opcode)
 
 //        else {
 //            NSData* data = [self pushdata];
@@ -169,14 +155,18 @@ public struct ScriptChunk {
 //            }
         } else {
             var string: String
-            guard let data = pushData, !data.isEmpty else {
+            guard let data = pushedData, !data.isEmpty else {
                 return "OP_0" // Empty data is encoded as OP_0.
             }
 
             if isASCIIData(data: data) {
                 string = String(data: data, encoding: String.Encoding.ascii)!
+
+                // Escape escapes & single quote characters.
                 string = string.replacingOccurrences(of: "\\", with: "\\\\")
                 string = string.replacingOccurrences(of: "'", with: "\\'")
+
+                // Wrap in single quotes. Why not double? Because they are already used in JSON and we don't want to multiply the mess.
                 string = "'" + string + "'"
 
 //            else {
@@ -190,6 +180,7 @@ public struct ScriptChunk {
             } else {
                 string = data.hex
 
+                // Shorter than 128-bit chunks are wrapped in square brackets to avoid ambiguity with big all-decimal numbers.
                 if data.count < 16 {
                     string = "[\(string)]"
                 }
@@ -203,6 +194,7 @@ public struct ScriptChunk {
 //                string = [NSString stringWithFormat:@"%d:%@", prefix, string];
 //            }
 //            return string;
+            // Non-compact data is prefixed with an appropriate length prefix.
             if !isDataCompact {
                 var prefix = 1
                 if opcode == Opcode.OP_PUSHDATA2 {
@@ -246,7 +238,7 @@ public struct ScriptChunk {
             return nil
         }
 //        NSMutableData* scriptData = [NSMutableData data];
-        var scriptData = Data()
+        var scriptData: Data = Data()
 
 //        if (data.length < OP_PUSHDATA1 && preferredLengthEncoding <= 0) {
 //            uint8_t len = data.length;
@@ -254,7 +246,7 @@ public struct ScriptChunk {
 //            [scriptData appendData:data];
 //        }
         if data.count < Opcode.OP_PUSHDATA1 && preferredLengthEncoding <= 0 {
-            let count = data.count
+            let count: Int = data.count
             scriptData += count
             scriptData += data
 
@@ -266,21 +258,21 @@ public struct ScriptChunk {
 //            [scriptData appendData:data];
 //        }
         } else if data.count <= (0xff) && (preferredLengthEncoding == -1 || preferredLengthEncoding == 1) {
-            let opcode = Opcode.OP_PUSHDATA1
-            let count = data.count
+            let opcode: UInt8 = Opcode.OP_PUSHDATA1
+            let count: Int = data.count
             scriptData += opcode
             scriptData += count
             scriptData += data
         } else if data.count <= (0xffff) && (preferredLengthEncoding == -1 || preferredLengthEncoding == 2) {
-            let opcode = Opcode.OP_PUSHDATA2
-            let count = data.count
+            let opcode: UInt8 = Opcode.OP_PUSHDATA2
+            let count: Int = data.count
             scriptData += opcode
             scriptData += count
             scriptData += data
             // QESTION: (unsigned long long)data.length <= 0xffffffffull は以下のような変換で良いのか
-        } else if CUnsignedLong(data.count) <= 0xffffffff && (preferredLengthEncoding == -1 || preferredLengthEncoding == 4) {
-            let opcode = Opcode.OP_PUSHDATA4
-            let count = data.count
+        } else if UInt64(data.count) <= 0xffffffff && (preferredLengthEncoding == -1 || preferredLengthEncoding == 4) {
+            let opcode: UInt8 = Opcode.OP_PUSHDATA4
+            let count: Int = data.count
             scriptData += opcode
             scriptData += count
             scriptData += data
@@ -302,7 +294,7 @@ public struct ScriptChunk {
 //
 //    const uint8_t* bytes = ((const uint8_t*)[scriptData bytes]);
 //    BTCOpcode opcode = bytes[offset];
-        let opcode = scriptData[offset]
+        let opcode: UInt8 = scriptData[offset]
 
 //        if (opcode <= OP_PUSHDATA4) {
 //            // push data opcode
@@ -311,9 +303,8 @@ public struct ScriptChunk {
 //            BTCScriptChunk* chunk = [[BTCScriptChunk alloc] init];
 //            chunk.scriptData = scriptData;
         if opcode <= Opcode.OP_PUSHDATA4 {
-            let count = scriptData.count
-
-            var chunk: ScriptChunk = ScriptChunk(scriptData: scriptData)
+            let count: Int = scriptData.count
+            let range: Range<Int>
 
 //            if (opcode < OP_PUSHDATA1) {
 //                uint8_t dataLength = opcode;
@@ -330,7 +321,7 @@ public struct ScriptChunk {
                 guard offset + chunkLength <= count else {
                     return nil
                 }
-                chunk.range = Range(offset...(offset + chunkLength - 1))
+                range = Range(offset..<offset + chunkLength)
 
 //                else if (opcode == OP_PUSHDATA1) {
 //                    uint8_t dataLength;
@@ -357,7 +348,7 @@ public struct ScriptChunk {
                 guard offset + chunkLength <= count else {
                     return nil
                 }
-                chunk.range = Range(offset...(offset + chunkLength - 1))
+                range = Range(offset..<offset + chunkLength)
             } else if opcode == Opcode.OP_PUSHDATA2 {
                 var dataLength = UInt16()
                 guard offset + MemoryLayout.size(ofValue: dataLength) <= count else {
@@ -371,7 +362,7 @@ public struct ScriptChunk {
                 guard offset + chunkLength <= count else {
                     return nil
                 }
-                chunk.range = Range(offset...(offset + chunkLength - 1))
+                range = Range(offset..<offset + chunkLength)
             } else if opcode == Opcode.OP_PUSHDATA4 {
                 var dataLength = UInt32()
                 guard offset + MemoryLayout.size(ofValue: dataLength) <= count else {
@@ -386,9 +377,12 @@ public struct ScriptChunk {
                 guard offset + chunkLength <= count else {
                     return nil
                 }
-                chunk.range = Range(offset...(offset + chunkLength - 1))
+                range = Range(offset..<offset + chunkLength)
+            } else {
+                return nil  // never comes here
+                            // because opcode is surely OP_PUSHDATA1, OP_PUSHDATA2, or OP_PUSHDATA4
             }
-            return chunk
+            return ScriptChunk(scriptData: scriptData, range: range)
 
 //        else {
 //            // simple opcode
@@ -398,12 +392,9 @@ public struct ScriptChunk {
 //            return chunk;
 //        }
         } else {
-            let chunk = ScriptChunk(scriptData: scriptData, range: Range(offset...offset + MemoryLayout.size(ofValue: opcode) - 1))
+            let range = Range(offset..<offset + MemoryLayout.size(ofValue: opcode))
+            let chunk = ScriptChunk(scriptData: scriptData, range: range)
             return chunk
         }
-    }
-
-    internal func copy() -> ScriptChunk {
-        return ScriptChunk(scriptData: scriptData, range: range)
     }
 }

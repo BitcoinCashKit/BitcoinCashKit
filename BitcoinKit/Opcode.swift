@@ -279,18 +279,14 @@ public struct Opcode {
     ]
 
     public static func getOpcodeName(with opcode: UInt8) -> String {
-        let name = OpcodeForNameDictionary.filter { $0.1 == opcode }.map { $0.0 }
-        guard !name.isEmpty else {
+        guard let item = (OpcodeForNameDictionary.first { $0.value == opcode }) else {
             return "OP_UNKNOWN"
         }
-        return name[0]
+        return item.key
     }
 
     public static func getOpcode(with name: String) -> UInt8 {
-        guard let opcode = OpcodeForNameDictionary[name] else {
-            return OP_INVALIDOPCODE
-        }
-        return opcode
+        return OpcodeForNameDictionary[name] ?? OP_INVALIDOPCODE
     }
 
     // Returns OP_1NEGATE, OP_0 .. OP_16 for ints from -1 to 16.
@@ -309,7 +305,7 @@ public struct Opcode {
     }
 
     // Converts opcode OP_<N> or OP_1NEGATE to an integer value.
-    // If incorrect opcode is given, NSIntegerMax is returned.
+    // If incorrect opcode is given, Int.max is returned.
     public static func smallIntegerFromOpcode(opcode: UInt8) -> Int {
         switch opcode {
         case OP_1NEGATE:
@@ -319,7 +315,7 @@ public struct Opcode {
         case (OP_1...OP_16):
             return Int(opcode) - Int(OP_1 - 1)
         default:
-            return LONG_MAX
+            return Int.max
         }
     }
 }
