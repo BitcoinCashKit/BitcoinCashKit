@@ -154,7 +154,7 @@ public class Script {
 
         while i < count {
             // Exit if failed to parse
-            guard let chunk = ScriptChunk.parseChunkFromData(scriptData: data, offset: i) else {
+            guard let chunk = ScriptChunk.parseChunk(from: data, offset: i) else {
                 return nil
             }
             chunks.append(chunk)
@@ -347,6 +347,245 @@ public class Script {
         return nil
     }
 
+//    - (void) invalidateSerialization {
+//    _data = nil;
+//    _string = nil;
+//    _multisigSignaturesRequired = 0;
+//    _multisigPublicKeys = nil;
+//    }
+    public func invalidateSerialization() {
+        // TODO: set nil for cached self.data and self.string
+        multisig = nil
+    }
+
+//    - (BTCScript*) appendOpcode:(BTCOpcode)opcode {
+//    NSMutableData* scriptData = [self.data mutableCopy] ?: [NSMutableData data];
+//
+//    [scriptData appendBytes:&opcode length:sizeof(opcode)];
+//
+//    BTCScriptChunk* chunk = [[BTCScriptChunk alloc] init];
+//    chunk.scriptData = scriptData;
+//    chunk.range = NSMakeRange(scriptData.length - sizeof(opcode), sizeof(opcode));
+//    [_chunks addObject:chunk];
+//
+//    // Update reference to a new data for all chunks.
+//    for (BTCScriptChunk* chunk in _chunks) chunk.scriptData = scriptData;
+//
+//    [self invalidateSerialization];
+//
+//    return self;
+//    }
+    public func append(opcode: UInt8) -> Script {
+        var scriptData: Data = data
+        scriptData += opcode
+
+        var updatedChunks = [ScriptChunk]()
+
+        // Update reference to a new data for all chunks.
+        // ScriptChunkがStructなので、updateするためには新たにScriptChunkを作る必要がある
+        for chunk in chunks {
+            let updatedChunk = ScriptChunk(scriptData: scriptData, range: chunk.range)
+            updatedChunks.append(updatedChunk)
+        }
+
+        let range = Range(scriptData.count - MemoryLayout.size(ofValue: opcode)..<scriptData.count)
+        let chunk = ScriptChunk(scriptData: scriptData, range: range)
+        updatedChunks.append(chunk)
+
+        chunks = updatedChunks
+        invalidateSerialization()
+
+        return self
+    }
+
+//    - (BTCScript*) appendData:(NSData*)data {
+//    if (data.length == 0) return self;
+//
+//    NSMutableData* scriptData = [self.data mutableCopy] ?: [NSMutableData data];
+//
+//    NSData* addedScriptData = [BTCScriptChunk scriptDataForPushdata:data preferredLengthEncoding:-1];
+//    [scriptData appendData:addedScriptData];
+//
+//    BTCScriptChunk* chunk = [[BTCScriptChunk alloc] init];
+//    chunk.scriptData = scriptData;
+//    chunk.range = NSMakeRange(scriptData.length - addedScriptData.length, addedScriptData.length);
+//    [_chunks addObject:chunk];
+//
+//    // Update reference to a new data for all chunks.
+//    for (BTCScriptChunk* chunk in _chunks) chunk.scriptData = scriptData;
+//
+//    [self invalidateSerialization];
+//
+//    return self;
+//    }
+    public func append(data: Data) -> Script {
+        guard !data.isEmpty else {
+            return self
+        }
+
+        var scriptData: Data = self.data
+
+        guard let addedScriptData = ScriptChunk.scriptData(for: data, preferredLengthEncoding: -1) else {
+            return self
+        }
+        scriptData.append(addedScriptData)
+
+        var updatedChunks = [ScriptChunk]()
+
+        // Update reference to a new data for all chunks.
+        for chunk in chunks {
+            let updatedChunk = ScriptChunk(scriptData: scriptData, range: chunk.range)
+            updatedChunks.append(updatedChunk)
+        }
+
+        let range = Range(scriptData.count - addedScriptData.count..<scriptData.count)
+        let chunk = ScriptChunk(scriptData: scriptData, range: range)
+        updatedChunks.append(chunk)
+
+        chunks = updatedChunks
+        invalidateSerialization()
+
+        return self
+    }
+
+//    - (BTCScript*) appendScript:(BTCScript*)otherScript {
+//    if (!otherScript) return self;
+//
+//    NSMutableData* scriptData = [self.data mutableCopy] ?: [NSMutableData data];
+//
+//    NSInteger offset = scriptData.length;
+//
+//    [scriptData appendData:otherScript.data];
+//
+//    for (BTCScriptChunk* chunk in otherScript->_chunks) {
+//    BTCScriptChunk* chunk2 = [[BTCScriptChunk alloc] init];
+//    chunk2.range = NSMakeRange(chunk.range.location + offset, chunk.range.length);
+//    chunk2.scriptData = scriptData;
+//    [_chunks addObject:chunk2];
+//    }
+//
+//    // Update reference to a new data for all chunks.
+//    for (BTCScriptChunk* chunk in _chunks) chunk.scriptData = scriptData;
+//
+//    [self invalidateSerialization];
+//
+//    return self;
+//    }
+    public func append(otherScript: Script) -> Script {
+        guard !otherScript.data.isEmpty else {
+            return self
+        }
+
+        var scriptData: Data = self.data
+
+        let offset: Int = scriptData.count
+
+        scriptData.append(otherScript.data)
+
+        var updatedChunks = [ScriptChunk]()
+
+        // Update reference to a new data for all chunks.
+        for chunk in chunks {
+            let updatedChunk = ScriptChunk(scriptData: scriptData, range: chunk.range)
+            updatedChunks.append(updatedChunk)
+        }
+
+        for chunk in otherScript.chunks {
+            let range = Range(chunk.range.lowerBound + offset..<scriptData.count)
+            let chunk2 = ScriptChunk(scriptData: scriptData, range: range)
+            updatedChunks.append(chunk2)
+        }
+
+        chunks = updatedChunks
+        invalidateSerialization()
+
+        return self
+    }
+
+//    - (BTCScript*) deleteOccurrencesOfData:(NSData*)data {
+//    if (data.length == 0) return self;
+//
+//    NSMutableData* md = [NSMutableData data];
+//
+//    for (BTCScriptChunk* chunk in _chunks) {
+//    if (![chunk.pushdata isEqual:data]) {
+//    [md appendData:chunk.chunkData];
+//    }
+//    }
+//
+//    _chunks = [self parseData:md];
+//
+//    return self;
+//    }
+    public func deleteOccurrences(of data: Data) -> Script {
+        guard !data.isEmpty else {
+            return self
+        }
+
+        let updatedData = chunks.filter { $0.pushedData != data }.reduce(Data()) { $0 + $1.chunkData }
+        guard let updatedChunks = Script.parseData(updatedData) else {
+            return self
+        }
+
+        chunks = updatedChunks
+        return self
+    }
+
+//    - (BTCScript*) deleteOccurrencesOfOpcode:(BTCOpcode)opcode {
+//    NSMutableData* md = [NSMutableData data];
+//
+//    for (BTCScriptChunk* chunk in _chunks) {
+//    if (chunk.opcode != opcode) {
+//    [md appendData:chunk.chunkData];
+//    }
+//    }
+//
+//    _chunks = [self parseData:md];
+//
+//    return self;
+//    }
+    public func deleteOccurrences(of opcode: UInt8) -> Script {
+        let updatedData = chunks.filter { $0.opcode != opcode }.reduce(Data()) { $0 + $1.chunkData }
+        guard let updatedChunks = Script.parseData(updatedData) else {
+            return self
+        }
+
+        chunks = updatedChunks
+        return self
+    }
+
+//    - (BTCScript*) subScriptFromIndex:(NSUInteger)index {
+//    NSMutableData* md = [NSMutableData data];
+//    for (BTCScriptChunk* chunk in [_chunks subarrayWithRange:NSMakeRange(index, _chunks.count - index)]) {
+//    [md appendData:chunk.chunkData];
+//    }
+//    return [[BTCScript alloc] initWithData:md];
+//    }
+    // QUESTION: indexがchunksのカウントを超えていた場合、out of boundsのエラーで良いのか？
+    public func subScript(from index: Int) -> Script? {
+        let subChunks = chunks[Range(index..<chunks.count)]
+        let updatedData = subChunks.reduce(Data()) { $0 + $1.chunkData }
+        return Script(data: updatedData)   // initに失敗した時の対応
+    }
+
+//    - (BTCScript*) subScriptToIndex:(NSUInteger)index {
+//    NSMutableData* md = [NSMutableData data];
+//    for (BTCScriptChunk* chunk in [_chunks subarrayWithRange:NSMakeRange(0, index)]) {
+//    [md appendData:chunk.chunkData];
+//    }
+//    return [[BTCScript alloc] initWithData:md];
+//    }
+    public func subScript(to index: Int) -> Script? {
+        let subChunks = chunks[Range(0..<index)]
+        let updatedData = subChunks.reduce(Data()) { $0 + $1.chunkData }
+        return Script(data: updatedData)   // initに失敗した時の対応
+    }
+    
+    // QUESTION: zoneとは？
+//    - (id) copyWithZone:(NSZone *)zone {
+//    return [[BTCScript alloc] initWithData:self.data];
+//    }
+
     // Raise exception if index is out of bounds
     public func chunk(at index: Int) -> ScriptChunk {
         return chunks[index < 0 ? chunks.count + index : index]
@@ -399,5 +638,11 @@ public struct KishikawaScript {
 
     public static func getPublicKeyHash(from script: Data) -> Data {
         return script[3..<23]
+    }
+}
+
+extension Script: CustomStringConvertible {
+    public var description: String {
+        return string
     }
 }
