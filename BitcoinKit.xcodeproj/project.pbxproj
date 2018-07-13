@@ -76,6 +76,7 @@
 		CF432B0020F38ACD00AD4020 /* Opcode.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF432AFF20F38ACD00AD4020 /* Opcode.swift */; };
 		CF432B0220F3EB4F00AD4020 /* ScriptChunk.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF432B0120F3EB4F00AD4020 /* ScriptChunk.swift */; };
 		CF432B0420F6684900AD4020 /* ScriptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF432B0320F6684900AD4020 /* ScriptTests.swift */; };
+		CF432B0620F848A700AD4020 /* ScriptMachine.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF432B0520F848A700AD4020 /* ScriptMachine.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -162,6 +163,7 @@
 		CF432AFF20F38ACD00AD4020 /* Opcode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Opcode.swift; sourceTree = "<group>"; };
 		CF432B0120F3EB4F00AD4020 /* ScriptChunk.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptChunk.swift; sourceTree = "<group>"; };
 		CF432B0320F6684900AD4020 /* ScriptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptTests.swift; sourceTree = "<group>"; };
+		CF432B0520F848A700AD4020 /* ScriptMachine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptMachine.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -293,6 +295,7 @@
 				147494EF201FAE30006D1CF8 /* Serialization.swift */,
 				CF432AFF20F38ACD00AD4020 /* Opcode.swift */,
 				14F37A3B20209F9200D34748 /* Script.swift */,
+				CF432B0520F848A700AD4020 /* ScriptMachine.swift */,
 				CF432B0120F3EB4F00AD4020 /* ScriptChunk.swift */,
 				14F37A3D2020A02000D34748 /* SighashType.swift */,
 				299CB47220F0185500B1245C /* TransactionSignatureSerializer.swift */,
@@ -515,6 +518,7 @@
 				1482B5E22026B0680098B612 /* Mnemonic.swift in Sources */,
 				2949920620F22DCA00D078B6 /* UnsignedTransaction.swift in Sources */,
 				14839A9B202FE71200A6CB34 /* TransactionInput.swift in Sources */,
+				CF432B0620F848A700AD4020 /* ScriptMachine.swift in Sources */,
 				147494EE201FADAC006D1CF8 /* MurmurHash.swift in Sources */,
 				14839A8B202FE64D00A6CB34 /* GetDataMessage.swift in Sources */,
 				1482B5E8202721FF0098B612 /* HDPrivateKey.swift in Sources */,
