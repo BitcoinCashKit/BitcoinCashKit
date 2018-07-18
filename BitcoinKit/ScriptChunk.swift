@@ -64,7 +64,7 @@ public struct ScriptChunk {
         case ...Opcode.OP_PUSHDATA1:
             return true // length fits in one byte under OP_PUSHDATA1.
         case Opcode.OP_PUSHDATA1:
-            return data.count >= Opcode.OP_PUSHDATA1 // length should be less than OP_PUSHDATA1
+            return data.count >= Opcode.OP_PUSHDATA1 // length should not be less than OP_PUSHDATA1
         case Opcode.OP_PUSHDATA2:
             return data.count > (0xff) // length should not fit in one byte
         case Opcode.OP_PUSHDATA4:
@@ -149,32 +149,19 @@ public struct ScriptChunk {
         var scriptData: Data = Data()
 
         if data.count < Opcode.OP_PUSHDATA1 && preferredLengthEncoding <= 0 {
-            let count: Int = data.count
-            scriptData += count
-            scriptData += data
-
+            // do nothing
         } else if data.count <= (0xff) && (preferredLengthEncoding == -1 || preferredLengthEncoding == 1) {
-            let opcode: UInt8 = Opcode.OP_PUSHDATA1
-            let count: Int = data.count
-            scriptData += opcode
-            scriptData += count
-            scriptData += data
+            scriptData += Opcode.OP_PUSHDATA1
         } else if data.count <= (0xffff) && (preferredLengthEncoding == -1 || preferredLengthEncoding == 2) {
-            let opcode: UInt8 = Opcode.OP_PUSHDATA2
-            let count: Int = data.count
-            scriptData += opcode
-            scriptData += count
-            scriptData += data
+            scriptData += Opcode.OP_PUSHDATA2
         } else if UInt64(data.count) <= 0xffffffff && (preferredLengthEncoding == -1 || preferredLengthEncoding == 4) {
-            let opcode: UInt8 = Opcode.OP_PUSHDATA4
-            let count: Int = data.count
-            scriptData += opcode
-            scriptData += count
-            scriptData += data
+            scriptData += Opcode.OP_PUSHDATA4
         } else {
             // Invalid preferredLength encoding or data size is too big.
             return nil
         }
+        scriptData += data.count
+        scriptData += data
         return scriptData
     }
 
@@ -248,8 +235,7 @@ public struct ScriptChunk {
         } else {
             // simple opcode
             let range = Range(offset..<offset + MemoryLayout.size(ofValue: opcode))
-            let chunk = ScriptChunk(scriptData: scriptData, range: range)
-            return chunk
+            return ScriptChunk(scriptData: scriptData, range: range)
         }
     }
 }
