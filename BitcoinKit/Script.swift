@@ -38,10 +38,10 @@ public class Script {
         return md
     }
 
-    public typealias MultisigsigRequirements = (nSingRequired: UInt, publickeys: [PublicKey])
+    public typealias MultisigRequirements = (nSigRequired: UInt, publickeys: [PublicKey])
     // Multisignature script attributes.
     // If multisig script is not detected, both are NULL.
-    public var multisig: MultisigsigRequirements?
+    public var multisigRequirements: MultisigRequirements?
 
     init() {
         self.chunks = [ScriptChunk]()
@@ -65,13 +65,6 @@ public class Script {
             return nil
         }
         self.init(data: data)
-    }
-
-    convenience init?(string: String) {
-        guard let chunks = Script.parseString(string) else {
-            return nil
-        }
-        self.init(chunks: chunks)
     }
 
     convenience init?(address: Address) {
@@ -139,8 +132,8 @@ public class Script {
         data += nOpcode
         data += Opcode.OP_CHECKMULTISIG
 
-        self.init(data: data)   // TODO: init出来なかった時の挙動を確認する
-        self.multisig = (signaturesRequired, publicKeys)
+        self.init(data: data)
+        self.multisigRequirements = (signaturesRequired, publicKeys)
     }
 
     public var hex: String {
@@ -180,11 +173,6 @@ public class Script {
         return chunks
     }
 
-    // TODO: not implemented
-    private static func parseString(_ string: String) -> [ScriptChunk]? {
-        return nil
-    }
-
     public var isStandard: Bool {
         return isPayToPublicKeyHashScript
             || isPayToScriptHashScript
@@ -222,9 +210,7 @@ public class Script {
         guard chunks.count == 3 else {
             return false
         }
-        let dataChunk = chunk(at: 1)
         return opcode(at: 0) == Opcode.OP_HASH160
-            && !dataChunk.isOpcode
             && pushedData(at: 1)?.count == 20 // this is enough to match the exact byte template, any other encoding will be larger.
             && opcode(at: 2) == Opcode.OP_EQUAL
     }
@@ -244,17 +230,17 @@ public class Script {
         guard isMultisignatureScript else {
             return false
         }
-        guard let multisigPublicKeys = multisig?.publickeys else {
+        guard let multisigPublicKeys = multisigRequirements?.publickeys else {
             return false
         }
         return multisigPublicKeys.count <= 3
     }
 
     public var isMultisignatureScript: Bool {
-        if multisig?.nSingRequired == 0 {
+        if multisigRequirements?.nSigRequired == 0 {
             detectMultisigScript()
         }
-        guard let nSingRequired = multisig?.nSingRequired else {
+        guard let nSingRequired = multisigRequirements?.nSigRequired else {
             return false
         }
         return nSingRequired > 0
@@ -300,8 +286,8 @@ public class Script {
         }
 
         // Now we extracted all pubkeys and verified the numbers.
-        multisig?.nSingRequired = UInt(m)
-        multisig?.publickeys = pubkeys
+        multisigRequirements?.nSigRequired = UInt(m)
+        multisigRequirements?.publickeys = pubkeys
     }
 
     // Include both PUSHDATA ops and OP_0..OP_16 literals.
@@ -313,10 +299,7 @@ public class Script {
         return chunks
     }
 
-    public func enumerateOperations(block: ((_ opIndex: Int, _ opcode: UInt8, _ pushData: Data?) -> Bool)?) {
-        guard let block = block else {
-            return
-        }
+    public func enumerateOperations(block: (_ opIndex: Int, _ opcode: UInt8, _ pushData: Data?) -> Bool) {
         for (opIndex, chunk) in chunks.enumerated() {
             if chunk.isOpcode {
                 if block(opIndex, chunk.opcode, nil) {
@@ -356,41 +339,11 @@ public class Script {
         return nil
     }
 
-    // TODO: not implemented
-    // need to create initializer of Address which takes data, type and network as its args
-    // Wraps the recipient into an output P2SH script (OP_HASH160 <20-byte hash of the recipient> OP_EQUAL).
-    public func scriptHashScript() -> Script? {
-        return nil
-    }
-
-//    - (void) invalidateSerialization {
-//    _data = nil;
-//    _string = nil;
-//    _multisigSignaturesRequired = 0;
-//    _multisigPublicKeys = nil;
-//    }
     public func invalidateSerialization() {
         // TODO: set nil for cached self.data and self.string
-        multisig = nil
+        multisigRequirements = nil
     }
 
-//    - (BTCScript*) appendOpcode:(BTCOpcode)opcode {
-//    NSMutableData* scriptData = [self.data mutableCopy] ?: [NSMutableData data];
-//
-//    [scriptData appendBytes:&opcode length:sizeof(opcode)];
-//
-//    BTCScriptChunk* chunk = [[BTCScriptChunk alloc] init];
-//    chunk.scriptData = scriptData;
-//    chunk.range = NSMakeRange(scriptData.length - sizeof(opcode), sizeof(opcode));
-//    [_chunks addObject:chunk];
-//
-//    // Update reference to a new data for all chunks.
-//    for (BTCScriptChunk* chunk in _chunks) chunk.scriptData = scriptData;
-//
-//    [self invalidateSerialization];
-//
-//    return self;
-//    }
     public func append(opcode: UInt8) -> Script {
         var scriptData: Data = data
         scriptData += opcode
@@ -414,26 +367,6 @@ public class Script {
         return self
     }
 
-//    - (BTCScript*) appendData:(NSData*)data {
-//    if (data.length == 0) return self;
-//
-//    NSMutableData* scriptData = [self.data mutableCopy] ?: [NSMutableData data];
-//
-//    NSData* addedScriptData = [BTCScriptChunk scriptDataForPushdata:data preferredLengthEncoding:-1];
-//    [scriptData appendData:addedScriptData];
-//
-//    BTCScriptChunk* chunk = [[BTCScriptChunk alloc] init];
-//    chunk.scriptData = scriptData;
-//    chunk.range = NSMakeRange(scriptData.length - addedScriptData.length, addedScriptData.length);
-//    [_chunks addObject:chunk];
-//
-//    // Update reference to a new data for all chunks.
-//    for (BTCScriptChunk* chunk in _chunks) chunk.scriptData = scriptData;
-//
-//    [self invalidateSerialization];
-//
-//    return self;
-//    }
     public func append(data: Data) -> Script {
         guard !data.isEmpty else {
             return self
@@ -464,29 +397,6 @@ public class Script {
         return self
     }
 
-//    - (BTCScript*) appendScript:(BTCScript*)otherScript {
-//    if (!otherScript) return self;
-//
-//    NSMutableData* scriptData = [self.data mutableCopy] ?: [NSMutableData data];
-//
-//    NSInteger offset = scriptData.length;
-//
-//    [scriptData appendData:otherScript.data];
-//
-//    for (BTCScriptChunk* chunk in otherScript->_chunks) {
-//    BTCScriptChunk* chunk2 = [[BTCScriptChunk alloc] init];
-//    chunk2.range = NSMakeRange(chunk.range.location + offset, chunk.range.length);
-//    chunk2.scriptData = scriptData;
-//    [_chunks addObject:chunk2];
-//    }
-//
-//    // Update reference to a new data for all chunks.
-//    for (BTCScriptChunk* chunk in _chunks) chunk.scriptData = scriptData;
-//
-//    [self invalidateSerialization];
-//
-//    return self;
-//    }
     public func append(otherScript: Script) -> Script {
         guard !otherScript.data.isEmpty else {
             return self
@@ -518,21 +428,6 @@ public class Script {
         return self
     }
 
-//    - (BTCScript*) deleteOccurrencesOfData:(NSData*)data {
-//    if (data.length == 0) return self;
-//
-//    NSMutableData* md = [NSMutableData data];
-//
-//    for (BTCScriptChunk* chunk in _chunks) {
-//    if (![chunk.pushdata isEqual:data]) {
-//    [md appendData:chunk.chunkData];
-//    }
-//    }
-//
-//    _chunks = [self parseData:md];
-//
-//    return self;
-//    }
     public func deleteOccurrences(of data: Data) -> Script {
         guard !data.isEmpty else {
             return self
@@ -547,19 +442,6 @@ public class Script {
         return self
     }
 
-//    - (BTCScript*) deleteOccurrencesOfOpcode:(BTCOpcode)opcode {
-//    NSMutableData* md = [NSMutableData data];
-//
-//    for (BTCScriptChunk* chunk in _chunks) {
-//    if (chunk.opcode != opcode) {
-//    [md appendData:chunk.chunkData];
-//    }
-//    }
-//
-//    _chunks = [self parseData:md];
-//
-//    return self;
-//    }
     public func deleteOccurrences(of opcode: UInt8) -> Script {
         let updatedData = chunks.filter { $0.opcode != opcode }.reduce(Data()) { $0 + $1.chunkData }
         guard let updatedChunks = Script.parseData(updatedData) else {
@@ -570,37 +452,17 @@ public class Script {
         return self
     }
 
-//    - (BTCScript*) subScriptFromIndex:(NSUInteger)index {
-//    NSMutableData* md = [NSMutableData data];
-//    for (BTCScriptChunk* chunk in [_chunks subarrayWithRange:NSMakeRange(index, _chunks.count - index)]) {
-//    [md appendData:chunk.chunkData];
-//    }
-//    return [[BTCScript alloc] initWithData:md];
-//    }
-    // QUESTION: indexがchunksのカウントを超えていた場合、out of boundsのエラーで良いのか？
     public func subScript(from index: Int) -> Script? {
         let subChunks = chunks[Range(index..<chunks.count)]
         let updatedData = subChunks.reduce(Data()) { $0 + $1.chunkData }
-        return Script(data: updatedData)   // initに失敗した時の対応
+        return Script(data: updatedData)
     }
 
-//    - (BTCScript*) subScriptToIndex:(NSUInteger)index {
-//    NSMutableData* md = [NSMutableData data];
-//    for (BTCScriptChunk* chunk in [_chunks subarrayWithRange:NSMakeRange(0, index)]) {
-//    [md appendData:chunk.chunkData];
-//    }
-//    return [[BTCScript alloc] initWithData:md];
-//    }
     public func subScript(to index: Int) -> Script? {
         let subChunks = chunks[Range(0..<index)]
         let updatedData = subChunks.reduce(Data()) { $0 + $1.chunkData }
-        return Script(data: updatedData)   // initに失敗した時の対応
+        return Script(data: updatedData)
     }
-    
-    // QUESTION: zoneとは？
-//    - (id) copyWithZone:(NSZone *)zone {
-//    return [[BTCScript alloc] initWithData:self.data];
-//    }
 
     // Raise exception if index is out of bounds
     public func chunk(at index: Int) -> ScriptChunk {
