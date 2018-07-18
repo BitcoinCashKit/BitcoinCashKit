@@ -38,6 +38,11 @@ let BTC_MAX_OPS_PER_SCRIPT: Int = 201
 // You can -copy a machine which will copy all the parameters and the stack state.
 class ScriptMachine {
 
+    // Constants
+    private let blobFalse = Data()
+    private let blobZero = Data()
+    private let blobTrue = Data(bytes: [UInt8(1)])
+
     // "To" transaction that is signed by an inputScript.
     // Required parameter.
     public var transaction: Transaction?
@@ -62,10 +67,10 @@ class ScriptMachine {
     public var verificationFlags: ScriptVerification?
 
     // Stack contains NSData objects that are interpreted as numbers, bignums, booleans or raw data when needed.
-    public var stack: Data = Data()
+    public var stack = [Data]()
 
     // Used in ALTSTACK ops.
-    public var altStack: Data = Data()
+    public var altStack = [Data]()
 
     // Holds an array of @YES and @NO values to keep track of if/else branches.
     public var conditionStack = [Bool]()
@@ -91,23 +96,11 @@ class ScriptMachine {
     public var opFailed: Bool?
 
     init() {
-        stack = Data()
-        altStack = Data()
+        stack = [Data()]
+        altStack = [Data()]
         conditionStack = [Bool]()
     }
 
-//    - (id) initWithTransaction:(BTCTransaction*)tx inputIndex:(uint32_t)inputIndex {
-//    if (!tx) return nil;
-//    // BitcoinQT would crash right before VerifyScript if the input index was out of bounds.
-//    // So even though it returns 1 from SignatureHash() function when checking for this condition,
-//    // it never actually happens. So we too will not check for it when calculating a hash.
-//    if (inputIndex >= tx.inputs.count) return nil;
-//    if (self = [self init]) {
-//    _transaction = tx;
-//    _inputIndex = inputIndex;
-//    }
-//    return self;
-//    }
     // This will return nil if the transaction is nil, or inputIndex is out of bounds.
     // You can use -init if you want to run scripts without signature verification (so no transaction is needed).
     convenience init?(tx: Transaction, inputIndex: Int) {
@@ -126,14 +119,9 @@ class ScriptMachine {
         self.inputIndex = inputIndex
     }
 
-//    - (void) resetStack {
-//    _stack = [NSMutableArray array];
-//    _altStack = [NSMutableArray array];
-//    _conditionStack = [NSMutableArray array];
-//    }
     public func resetStack() {
-        stack = Data()
-        altStack = Data()
+        stack = [Data()]
+        altStack = [Data()]
         conditionStack = [Bool]()
     }
 
@@ -143,23 +131,8 @@ class ScriptMachine {
 
     public func verify(with outputScript: Script?) -> Bool {
         // self.inputScript allows to override transaction so we can simply testing.
-//        BTCScript* inputScript = self.inputScript;
         let inputScript: Script
 
-//        if (!inputScript) {
-//            // Sanity check: transaction and its input should be consistent.
-//            if (!(self.transaction && self.inputIndex < self.transaction.inputs.count)) {
-//                [NSException raise:@"BTCScriptMachineException"  format:@"transaction and valid inputIndex are required for script verification."];
-//                return NO;
-//            }
-//            if (!outputScript) {
-//                [NSException raise:@"BTCScriptMachineException"  format:@"non-nil outputScript is required for script verification."];
-//                return NO;
-//            }
-//
-//            BTCTransactionInput* txInput = self.transaction.inputs[self.inputIndex];
-//            inputScript = txInput.signatureScript;
-//        }
         if let script = self.inpuScript {
             inputScript = script
         } else {
@@ -180,67 +153,39 @@ class ScriptMachine {
         }
 
         // First step: run the input script which typically places signatures, pubkeys and other static data needed for outputScript.
-//        if (![self runScript:inputScript error:errorOut]) {
-//            // errorOut is set by runScript
-//            return NO;
-//        }
         guard run(script: inputScript) else {
             return false
         }
 
         // Make a copy of the stack if we have P2SH script.
         // We will run deserialized P2SH script on this stack if other verifications succeed.
-//        BOOL shouldVerifyP2SH = [self shouldVerifyP2SH] && outputScript.isPayToScriptHashScript;
-//        NSMutableArray* stackForP2SH = shouldVerifyP2SH ? [_stack mutableCopy] : nil;
         let shouldVerifyP2SH: Bool = self.shouldVerifyP2SH && (outputScript?.isPayToScriptHashScript ?? false)
-        let stackForP2SH: Data? = shouldVerifyP2SH ? stack : nil
+        let stackForP2SH: [Data]? = shouldVerifyP2SH ? stack : nil
 
         // Second step: run output script to see that the input satisfies all conditions laid in the output script.
-//        if (![self runScript:outputScript error:errorOut]) {
-//            // errorOut is set by runScript
-//            return NO;
-//        }
         guard run(script: outputScript) else {
             return false
         }
 
         // We need to have something on stack
-//        if (_stack.count == 0) {
-//            if (errorOut) *errorOut = [self scriptError:NSLocalizedString(@"Stack is empty after script execution.", @"")];
-//            return NO;
-//        }
         guard !stack.isEmpty else {
             print("Stack is empty after script execution.")
             return false
         }
 
         // The last value must be YES.
-//        if ([self boolAtIndex:-1] == NO) {
-//            if (errorOut) *errorOut = [self scriptError:NSLocalizedString(@"Last item on the stack is boolean NO.", @"")];
-//            return NO;
-//        }
         guard bool(at: -1) else {
             print("Last item on the stack is boolean NO.")
             return false
         }
 
         // Additional validation for spend-to-script-hash transactions:
-//        if (shouldVerifyP2SH) {
         if shouldVerifyP2SH {
-            // BitcoinQT: scriptSig must be literals-only
-//            if (![inputScript isDataOnly]) {
-//                if (errorOut) *errorOut = [self scriptError:NSLocalizedString(@"Input script for P2SH spending must be literals-only.", @"")];
-//                return NO;
-//            }
             guard inputScript.isDataOnly else {
                 print("Input script for P2SH spending must be literals-only.")
                 return false
             }
 
-//            if (stackForP2SH.count == 0) {
-//                [NSException raise:@"BTCScriptMachineException"  format:@"internal inconsistency: stackForP2SH cannot be empty at this point."];
-//                return NO;
-//            }
             guard var stackForP2SH = stackForP2SH, !stackForP2SH.isEmpty else {
                 // stackForP2SH cannot be empty here, because if it was the
                 // P2SH  HASH <> EQUAL  scriptPubKey would be evaluated with
@@ -250,44 +195,29 @@ class ScriptMachine {
             }
 
             // Instantiate the script from the last data on the stack.
-//            BTCScript* providedScript = [[BTCScript alloc] initWithData:[stackForP2SH lastObject]];
-            guard let last = stackForP2SH.last, let providedScript = Script(data: Data(bytes: [last])) else {
+            guard let last = stackForP2SH.last, let providedScript = Script(data: last) else {
                 print("Script initialization fails")
                 return false
             }
 
             // Remove it from the stack.
-//            [stackForP2SH removeObjectAtIndex:stackForP2SH.count - 1];
             stackForP2SH.removeLast()
 
             // Replace current stack with P2SH stack.
-//            [self resetStack];
-//            _stack = stackForP2SH;
             resetStack()
             self.stack = stackForP2SH
 
-//            if (![self runScript:providedScript error:errorOut]) {
-//                return NO;
-//            }
             guard run(script: providedScript) else {
                 return false
             }
 
             // We need to have something on stack
-//            if (_stack.count == 0) {
-//                if (errorOut) *errorOut = [self scriptError:NSLocalizedString(@"Stack is empty after script execution.", @"")];
-//                return NO;
-//            }
             guard !stack.isEmpty else {
                 print("Stack is empty after script execution.")
                 return false
             }
 
             // The last value must be YES.
-//            if ([self boolAtIndex:-1] == NO) {
-//                if (errorOut) *errorOut = [self scriptError:NSLocalizedString(@"Last item on the stack is boolean NO.", @"")];
-//                return NO;
-//            }
             guard bool(at: -1) else {
                 print("Last item on the stack is boolean NO.")
                 return false
@@ -298,37 +228,19 @@ class ScriptMachine {
         return true
     }
 
-//    - (BOOL) runScript:(BTCScript*)script error:(NSError**)errorOut {
     public func run(script: Script?) -> Bool {
-//    if (!script) {
-//    [NSException raise:@"BTCScriptMachineException"  format:@"non-nil script is required for -runScript:error: method."];
-//    return NO;
-//    }
         guard let script = script else {
             print("non-nil script is required for -runScript:error: method.")
             return false
         }
 
-//        if (script.data.length > BTC_MAX_SCRIPT_SIZE) {
-//            if (errorOut) *errorOut = [self scriptError:NSLocalizedString(@"Script binary is too long.", @"")];
-//            return NO;
-//        }
         guard script.data.count > BTC_MAX_SCRIPT_SIZE else {
             print("Script binary is too long.")
             return false
         }
 
         // Altstack should be reset between script runs.
-//        _altStack = [NSMutableArray array];
-//
-//        _script = script;
-//        _opIndex = 0;
-//        _opcode = 0;
-//        _pushdata = nil;
-//        _lastCodeSeparatorIndex = 0;
-//        _opCount = 0;
-
-        altStack = Data()
+        altStack = [Data()]
 
         opIndex = 0
         opcode = 0
@@ -336,19 +248,6 @@ class ScriptMachine {
         lastCodeSepartorIndex = 0
         opCount = 0
 
-//        __block BOOL opFailed = NO;
-//        [script enumerateOperations:^(NSUInteger opIndex, BTCOpcode opcode, NSData *pushdata, BOOL *stop) {
-//
-//            _opIndex = opIndex;
-//            _opcode = opcode;
-//            _pushdata = pushdata;
-//
-//            if (![self executeOpcodeError:errorOut])
-//            {
-//            opFailed = YES;
-//            *stop = YES;
-//            }
-//            }];
         opFailed = false
         script.enumerateOperations(block: { [weak self] opIndex, opcode, pushedData -> Bool in
             self?.opIndex = opIndex
@@ -362,17 +261,10 @@ class ScriptMachine {
             return false
         })
 
-//        if (opFailed) {
-//            return NO;
-//        }
         guard opFailed ?? false else {    // QUESTION: 直前で値を代入しているからopFailedはnilでは必ずない。強制アンラップしたい
             return false
         }
 
-//        if (_conditionStack.count > 0) {
-//            if (errorOut) *errorOut = [self scriptError:NSLocalizedString(@"Condition branches not balanced.", @"")];
-//            return NO;
-//        }
         guard !conditionStack.isEmpty else {
             print("Condition branches not balanced.")
             return false
@@ -381,30 +273,21 @@ class ScriptMachine {
         return true
     }
 
-//    - (BOOL) executeOpcodeError:(NSError**)errorOut {
     // swiftlint:disable:next cyclomatic_complexity
     private func executeOpcode() -> Bool {
-//        if (pushdata.length > BTC_MAX_SCRIPT_ELEMENT_SIZE) {
-//            if (errorOut) *errorOut = [self scriptError:NSLocalizedString(@"Pushdata chunk size is too big.", @"")];
-//            return NO;
-//        }
         guard pushedData == nil || pushedData!.count <= BTC_MAX_SCRIPT_ELEMENT_SIZE else {
             print("Pushdata chunk size is too big.")
             return false
         }
 
-//        if (opcode > OP_16 && !_pushdata && ++_opCount > BTC_MAX_OPS_PER_SCRIPT) {
-//            if (errorOut) *errorOut = [self scriptError:NSLocalizedString(@"Exceeded the allowed number of operations per script.", @"")];
-//            return NO;
-//        }
         guard opcode <= Opcode.OP_16 || pushedData != nil || opCount <= BTC_MAX_OPS_PER_SCRIPT else {
             print("Exceeded the allowed number of operations per script.")
             return false
         }
 
         // Disabled opcodes
-        // TODO: BCHで復活したOpcodeを変更する
-        if (opcode == Opcode.OP_CAT ||
+        // TODO: update disable opcodes for BCH
+        if opcode == Opcode.OP_CAT ||
             opcode == Opcode.OP_SUBSTR ||
             opcode == Opcode.OP_LEFT ||
             opcode == Opcode.OP_RIGHT ||
@@ -418,107 +301,90 @@ class ScriptMachine {
             opcode == Opcode.OP_DIV ||
             opcode == Opcode.OP_MOD ||
             opcode == Opcode.OP_LSHIFT ||
-            opcode == Opcode.OP_RSHIFT) {
+            opcode == Opcode.OP_RSHIFT {
             print("Attempt to execute a disabled opcode.")
             return false
         }
 
-//        BOOL shouldExecute = ([_conditionStack indexOfObject:@NO] == NSNotFound);
         let shouldExecute: Bool = !conditionStack.contains(false)
 
-//        if (shouldExecute && pushdata) {
-//            [_stack addObject:pushdata];
-//        }
         if let pushedData = pushedData, shouldExecute {
-            stack += pushedData
+            stack.append(pushedData)
 
-//        } else if (shouldExecute || (OP_IF <= opcode && opcode <= OP_ENDIF)) {
         } else if shouldExecute || (Opcode.OP_IF <= opcode && opcode <= Opcode.OP_ENDIF) {
             // this basically means that OP_VERIF and OP_VERNOTIF will always fail the script, even if not executed.
-            switch opcode {
+
             //
             // Push value
             //
-            case Opcode.OP_NEGATE, Opcode.OP_1...Opcode.OP_16:
+            if opcode == Opcode.OP_1NEGATE ||
+                opcode == Opcode.OP_1 ||
+                opcode == Opcode.OP_2 ||
+                opcode == Opcode.OP_3 ||
+                opcode == Opcode.OP_4 ||
+                opcode == Opcode.OP_5 ||
+                opcode == Opcode.OP_6 ||
+                opcode == Opcode.OP_7 ||
+                opcode == Opcode.OP_8 ||
+                opcode == Opcode.OP_9 ||
+                opcode == Opcode.OP_10 ||
+                opcode == Opcode.OP_11 ||
+                opcode == Opcode.OP_12 ||
+                opcode == Opcode.OP_13 ||
+                opcode == Opcode.OP_14 ||
+                opcode == Opcode.OP_15 ||
+                opcode == Opcode.OP_16 {
                 // ( -- value)
-//                BTCBigNumber* bn = [[BTCBigNumber alloc] initWithInt64:(int)opcode - (int)(OP_1 - 1)];
-//                [_stack addObject:bn.signedLittleEndian];
-                let bn: Int = Int(opcode) - Int(Opcode.OP_1 - 1)
-                stack += bn.littleEndian    // QUESTION: SwiftはデフォルトでlittleEndian？
+                let number: Int = Int(opcode) - Int(Opcode.OP_1 - 1)
+                stack.append(Data(from: number.littleEndian))
+            }
+
             //
             // Control
             //
-            case Opcode.OP_NOP, Opcode.OP_NOP1...Opcode.OP_NOP10:
-                break
-            case Opcode.OP_IF, Opcode.OP_NOTIF:
-                // <expression> if [statements] [else [statements]] endif
-//                BOOL value = NO;
-//                if (shouldExecute) {
-//                    if (_stack.count < 1) {
-//                        if (errorOut) *errorOut = [self scriptErrorOpcodeRequiresItemsOnStack:1];
-//                        return NO;
-//                    }
-//                    value = [self boolAtIndex:-1];
-//                    if (opcode == OP_NOTIF) {
-//                        value = !value;
-//                    }
-//                    [self popFromStack];
-//                }
-//                [_conditionStack addObject:@(value)];
+            else if opcode == Opcode.OP_NOP ||
+                opcode == Opcode.OP_NOP1 ||
+                opcode == Opcode.OP_NOP2 ||
+                opcode == Opcode.OP_NOP3 ||
+                opcode == Opcode.OP_NOP4 ||
+                opcode == Opcode.OP_NOP5 ||
+                opcode == Opcode.OP_NOP6 ||
+                opcode == Opcode.OP_NOP7 ||
+                opcode == Opcode.OP_NOP8 ||
+                opcode == Opcode.OP_NOP9 ||
+                opcode == Opcode.OP_NOP10 ||
+                opcode == Opcode.OP_NOP {
+                // do nothing
+            } else if opcode == Opcode.OP_IF || opcode == Opcode.OP_NOTIF {
                 var value: Bool = false
                 if shouldExecute {
                     guard stack.count >= 1 else {
-                        print("at least one item is needed") // TODO: implement scriptErrorOpcodeRequiresItemsOnStack
+                        print("at least one item is needed")
                         return false
                     }
                     value = opcode == Opcode.OP_IF ? bool(at: -1) : !bool(at: -1)
                     stack.removeLast()
                 }
                 conditionStack.append(value)
-            case Opcode.OP_ELSE:
-//                if (_conditionStack.count == 0) {
-//                    if (errorOut) *errorOut = [self scriptError:NSLocalizedString(@"Expected an OP_IF or OP_NOTIF branch before OP_ELSE.", @"")];
-//                    return NO;
-//                }
-//
-//                // Invert last condition.
-//                BOOL f = [[_conditionStack lastObject] boolValue];
-//                [_conditionStack removeObjectAtIndex:_conditionStack.count - 1];
-//                [_conditionStack addObject:@(!f)];
+            } else if opcode == Opcode.OP_ELSE {
+                // Invert last condition.
                 guard !conditionStack.isEmpty else {
                     print("Expected an OP_IF or OP_NOTIF branch before OP_ELSE.")
                     return false
                 }
                 let last = conditionStack.popLast()!
                 conditionStack.append(!last)
-            case Opcode.OP_ENDIF:
-//                if (_conditionStack.count == 0) {
-//                    if (errorOut) *errorOut = [self scriptError:NSLocalizedString(@"Expected an OP_IF or OP_NOTIF branch before OP_ENDIF.", @"")];
-//                    return NO;
-//                }
-//                [_conditionStack removeObjectAtIndex:_conditionStack.count - 1];
+            } else if opcode == Opcode.OP_ENDIF {
                 guard !conditionStack.isEmpty else {
                     print("Expected an OP_IF or OP_NOTIF branch before OP_ENDIF.")
                     return false
                 }
                 conditionStack.removeLast()
-            case Opcode.OP_VERIFY:
+            } else if opcode == Opcode.OP_VERIFY {
                 // (true -- ) or
                 // (false -- false) and return
-//                if (_stack.count < 1) {
-//                    if (errorOut) *errorOut = [self scriptErrorOpcodeRequiresItemsOnStack:1];
-//                    return NO;
-//                }
-//
-//                BOOL value = [self boolAtIndex:-1];
-//                if (value) {
-//                    [self popFromStack];
-//                } else {
-//                    if (errorOut) *errorOut = [self scriptError:NSLocalizedString(@"OP_VERIFY failed.", @"")];
-//                    return NO;
-//                }
                 guard stack.count >= 1 else {
-                    print("at least one item is needed") // TODO: implement scriptErrorOpcodeRequiresItemsOnStack
+                    print("at least one item is needed")
                     return false
                 }
                 if bool(at: -1) {
@@ -527,96 +393,552 @@ class ScriptMachine {
                     print("OP_VERIFY failed.")
                     return false
                 }
-            case Opcode.OP_RETURN:
+            } else if opcode == Opcode.OP_RETURN {
                 print("OP_RETURN executed.")
                 return false
+            }
+
             //
             // Stack ops
             //
-            case Opcode.OP_TOALTSTACK:
-//                if (_stack.count < 1) {
-//                    if (errorOut) *errorOut = [self scriptErrorOpcodeRequiresItemsOnStack:1];
-//                    return NO;
-//                }
-//                [_altStack addObject:[self dataAtIndex:-1]];
-//                [self popFromStack];
+            else if opcode == Opcode.OP_TOALTSTACK {
                 guard stack.count >= 1 else {
-                    print("at least one item is needed") // TODO: implement scriptErrorOpcodeRequiresItemsOnStack
+                    print("at least one item is needed")
                     return false
                 }
                 altStack.append(stack.popLast()!)
-            case Opcode.OP_FROMALTSTACK:
-//                if (_altStack.count < 1) {
-//                    if (errorOut) *errorOut = [self scriptError:[NSString stringWithFormat:NSLocalizedString(@"%@ requires one item on altstack", @""), BTCNameForOpcode(opcode)]];
-//                    return NO;
-//                }
-//                [_stack addObject:_altStack[_altStack.count - 1]];
-//                [_altStack removeObjectAtIndex:_altStack.count - 1];
+            } else if opcode == Opcode.OP_FROMALTSTACK {
                 guard altStack.count >= 1 else {
-                    print("at least one item is needed") // TODO: implement scriptErrorOpcodeRequiresItemsOnStack
+                    print("at least one item is needed")
                     return false
                 }
                 stack.append(altStack.popLast()!)
-            case Opcode.OP_2DROP:
+            } else if opcode == Opcode.OP_2DROP {
                 // (x1 x2 -- )
-//                if (_stack.count < 2) {
-//                    if (errorOut) *errorOut = [self scriptErrorOpcodeRequiresItemsOnStack:2];
-//                    return NO;
-//                }
-//                [self popFromStack];
-//                [self popFromStack];
                 guard stack.count >= 2 else {
-                    print("at least two items are needed") // TODO: implement scriptErrorOpcodeRequiresItemsOnStack
+                    print("at least two items are needed")
                     return false
                 }
                 stack.removeLast()
                 stack.removeLast()
-            case Opcode.OP_2DUP:
+            } else if opcode == Opcode.OP_2DUP {
                 // (x1 x2 -- x1 x2 x1 x2)
-//                if (_stack.count < 2) {
-//                if (errorOut) *errorOut = [self scriptErrorOpcodeRequiresItemsOnStack:2];
-//                return NO;
-//                }
-//                NSData* data1 = [self dataAtIndex:-2];
-//                NSData* data2 = [self dataAtIndex:-1];
-//                [_stack addObject:data1];
-//                [_stack addObject:data2];
                 guard stack.count >= 2 else {
-                    print("at least two items are needed") // TODO: implement scriptErrorOpcodeRequiresItemsOnStack
+                    print("at least two items are needed")
                     return false
                 }
                 stack.append(stack[-2])
                 stack.append(stack[-1])
-            case Opcode.OP_3DUP:
+            } else if opcode == Opcode.OP_3DUP {
                 // (x1 x2 x3 -- x1 x2 x3 x1 x2 x3)
-//                if (_stack.count < 3) {
-//                    if (errorOut) *errorOut = [self scriptErrorOpcodeRequiresItemsOnStack:3];
-//                    return NO;
-//                }
-//                NSData* data1 = [self dataAtIndex:-3];
-//                NSData* data2 = [self dataAtIndex:-2];
-//                NSData* data3 = [self dataAtIndex:-1];
-//                [_stack addObject:data1];
-//                [_stack addObject:data2];
-//                [_stack addObject:data3];
                 guard stack.count >= 3 else {
-                    print("at least three items are needed") // TODO: implement scriptErrorOpcodeRequiresItemsOnStack
+                    print("at least three items are needed")
                     return false
                 }
                 stack.append(stack[-3])
                 stack.append(stack[-2])
                 stack.append(stack[-1])
-            default:
-                break
+            } else if opcode == Opcode.OP_2OVER {
+                // (x1 x2 x3 x4 -- x1 x2 x3 x4 x1 x2)
+                guard stack.count >= 4 else {
+                    print("at least four items are needed")
+                    return false
+                }
+                stack.append(stack[-4])
+                stack.append(stack[-3])
+            } else if opcode == Opcode.OP_2ROT {
+                // (x1 x2 x3 x4 x5 x6 -- x3 x4 x5 x6 x1 x2)
+                guard stack.count >= 6 else {
+                    print("at least six items are needed")
+                    return false
+                }
+                stack.append(stack.remove(at: -6))
+                stack.append(stack.remove(at: -6))
+            } else if opcode == Opcode.OP_2SWAP {
+                // (x1 x2 x3 x4 -- x3 x4 x1 x2)
+                guard stack.count >= 4 else {
+                    print("at least four items are needed")
+                    return false
+                }
+                stack.swapAt(-4, -2)
+                stack.swapAt(-3, -1)
+            } else if opcode == Opcode.OP_IFDUP {
+                // (x -- x x)
+                // (0 -- 0)
+                guard stack.count >= 1 else {
+                    print("at least one item are needed")
+                    return false
+                }
+                if bool(at: -1) {
+                    stack.append(stack[-1])
+                }
+            } else if opcode == Opcode.OP_DEPTH {
+                // -- stacksize
+                let count = stack.count
+                stack.append(Data(from: count))
+            } else if opcode == Opcode.OP_DUP {
+                // (x -- x x)
+                guard stack.count >= 1 else {
+                    print("at least one item are needed")
+                    return false
+                }
+                stack.append(stack[-1])
+            } else if opcode == Opcode.OP_NIP {
+                // (x1 x2 -- x2)
+                guard stack.count >= 2 else {
+                    print("at least two item are needed")
+                    return false
+                }
+                stack.remove(at: -2)
+            } else if opcode == Opcode.OP_OVER {
+                // (x1 x2 -- x1 x2 x1)
+                guard stack.count >= 2 else {
+                    print("at least two item are needed")
+                    return false
+                }
+                stack.append(stack[-2])
+            } else if opcode == Opcode.OP_PICK || opcode == Opcode.OP_ROLL {
+                // pick: (xn ... x2 x1 x0 n -- xn ... x2 x1 x0 xn)
+                // roll: (xn ... x2 x1 x0 n --    ... x2 x1 x0 xn)
+                guard stack.count >= 2 else {
+                    print("at least two items are needed")
+                    return false
+                }
+
+                // Top item is a number of items to roll over.
+                // Take it and pop it from the stack.
+                guard let number = number(at: -1) else {
+                    return false
+                }
+
+                stack.removeLast()
+
+                if number < 0 || number >= stack.count {
+                    return false
+                }
+
+                let targetIndex = number * -1 - 1
+                let data = stack[Int(targetIndex)]
+                if opcode == Opcode.OP_ROLL {
+                    stack.remove(at: Int(targetIndex))
+                }
+                stack.append(data)
+            } else if opcode == Opcode.OP_ROT {
+                // (x1 x2 x3 -- x2 x3 x1)
+                //  x2 x1 x3  after first swap
+                //  x2 x3 x1  after second swap
+                guard stack.count >= 3 else {
+                    print("at least three items are needed")
+                    return false
+                }
+
+                stack.swapAt(-3, -2)
+                stack.swapAt(-2, -1)
+            } else if opcode == Opcode.OP_SWAP {
+                // (x1 x2 -- x2 x1)
+                guard stack.count >= 2 else {
+                    print("at least two items are needed")
+                    return false
+                }
+
+                stack.swapAt(-2, -1)
+            } else if opcode == Opcode.OP_TUCK {
+                // (x1 x2 -- x2 x1 x2)
+                guard stack.count >= 2 else {
+                    print("at least two items are needed")
+                    return false
+                }
+
+                stack.insert(stack[-1], at: -3)
+            } else if opcode == Opcode.OP_SIZE {
+                // (in -- in size)
+                guard stack.count >= 1 else {
+                    print("at least one item are needed")
+                    return false
+                }
+
+                let data = stack[-1]
+                stack.append(Data(from: data.count))
+            //
+            // Bitwise logic
+            //
+            } else if opcode == Opcode.OP_EQUAL || opcode == Opcode.OP_EQUALVERIFY {
+                //} else if opcode == OP_NOTEQUAL: // use OP_NUMNOTEQUAL
+                // (x1 x2 - bool)
+                guard stack.count >= 2 else {
+                    print("at least two items are needed")
+                    return false
+                }
+
+                let x1 = stack.popLast()!
+                let x2 = stack.popLast()!
+                let equal: Bool = x1 == x2
+
+                // OP_NOTEQUAL is disabled because it would be too easy to say
+                // something like n != 1 and have some wiseguy pass in 1 with extra
+                // zero bytes after it (numerically, 0x01 == 0x0001 == 0x000001)
+                //if (opcode == OP_NOTEQUAL)
+                //    equal = !equal;
+
+                if opcode == Opcode.OP_EQUAL {
+                    stack.append(equal ? blobTrue : blobFalse)
+                } else { // opcode == Opcode.OP_EQUALVERIFY
+                    guard equal else {
+                        return false
+                    }
+                }
+            //
+            // Numeric
+            //
+            } else if opcode == Opcode.OP_1ADD ||
+                opcode == Opcode.OP_1SUB ||
+                opcode == Opcode.OP_NEGATE ||
+                opcode == Opcode.OP_ABS {
+                // (in -- out)
+                guard var number = number(at: -1) else {
+                    return false
+                }
+                if opcode == Opcode.OP_1ADD {
+                    number += 1
+                 } else if opcode == Opcode.OP_1SUB {
+                    number -= 1
+                 } else if opcode == Opcode.OP_NEGATE {
+                    number *= -1
+                 } else { // opcode == Opcode.OP_ABS
+                    number = number < 0 ? number * -1 : number
+                }
+                stack.removeLast()
+                stack.append(Data(from: number.littleEndian))
+            } else if opcode == Opcode.OP_NOT {
+                // (in -- out)
+                guard let number = number(at: -1) else {
+                    return false
+                }
+                let equal = number == 0 ? blobTrue : blobFalse
+                stack.append(equal)
+            } else if opcode == Opcode.OP_0NOTEQUAL {
+                // (in -- out)
+                guard let number = number(at: -1) else {
+                    return false
+                }
+                let equal = number != 0 ? blobTrue : blobFalse
+                stack.append(equal)
+            } else if opcode == Opcode.OP_ADD || opcode == Opcode.OP_SUB {
+                // (x1 x2 -- out)
+                guard stack.count >= 2 else {
+                    print("at least two items are needed")
+                    return false
+                }
+
+                guard let number1 = self.number(at: -1), let number2 = self.number(at: -2) else {
+                    return false
+                }
+
+                var number: Int32
+
+                if opcode == Opcode.OP_ADD {
+                    number = number1 + number2
+                } else {
+                    number = number1 - number2
+                }
+
+                stack.removeLast()
+                stack.removeLast()
+                stack.append(Data(from: number))
+            } else if opcode == Opcode.OP_BOOLAND || opcode == Opcode.OP_BOOLAND {
+                // (x1 x2 -- out)
+                guard stack.count >= 2 else {
+                    print("at least two items are needed")
+                    return false
+                }
+
+                let (bool1, bool2) = (bool(at: -1), bool(at: -2))
+
+                if opcode == Opcode.OP_BOOLAND {
+                    stack.append(bool1 && bool2 ? blobTrue : blobFalse)
+                } else {
+                    stack.append(bool1 || bool2 ? blobTrue : blobFalse)
+                }
+            } else if opcode == Opcode.OP_NUMEQUAL ||
+                        opcode == Opcode.OP_NUMEQUALVERIFY ||
+                        opcode == Opcode.OP_NUMNOTEQUAL ||
+                        opcode == Opcode.OP_LESSTHAN ||
+                        opcode == Opcode.OP_GREATERTHAN ||
+                        opcode == Opcode.OP_LESSTHANOREQUAL ||
+                        opcode == Opcode.OP_GREATERTHANOREQUAL {
+                // (x1 x2 -- out)
+                guard stack.count >= 2 else {
+                    print("at least two items are needed")
+                    return false
+                }
+
+                guard let number1 = self.number(at: -1), let number2 = self.number(at: -2) else {
+                    return false
+                }
+
+                var bool: Bool = false
+
+                if opcode == Opcode.OP_NUMEQUAL || opcode == Opcode.OP_NUMEQUALVERIFY {
+                    bool = number1 == number2
+                } else if opcode == Opcode.OP_NUMNOTEQUAL {
+                    bool = number1 != number2
+                } else if opcode == Opcode.OP_LESSTHAN {
+                    bool = number1 < number2
+                } else if opcode == Opcode.OP_GREATERTHAN {
+                    bool = number1 > number2
+                } else if opcode == Opcode.OP_LESSTHANOREQUAL {
+                    bool = number1 <= number2
+                } else { // opcode == opcode.Opcode.OP_GREATERTHANOREQUAL
+                    bool = number1 >= number2
+                }
+                stack.removeLast()
+                stack.removeLast()
+                if opcode == Opcode.OP_NUMEQUALVERIFY {
+                    if !self.bool(at: -1) {
+                        return false
+                    }
+                } else {
+                    stack.append(bool ? blobTrue : blobFalse)
+                }
+            } else if opcode == Opcode.OP_MIN || opcode == Opcode.OP_MAX {
+                // (x1 x2 -- out)
+                guard stack.count >= 2 else {
+                    print("at least two items are needed")
+                    return false
+                }
+
+                guard let number1 = self.number(at: -1), let number2 = self.number(at: -2) else {
+                    return false
+                }
+
+                if opcode == Opcode.OP_MIN {
+                    stack.append(Data(from: min(number1, number2)))
+                } else {
+                    stack.append(Data(from: max(number1, number2)))
+                }
+            } else if opcode == Opcode.OP_WITHIN {
+                // (x min max -- out)
+                guard stack.count >= 3 else {
+                    print("at least three items are needed")
+                    return false
+                }
+
+                guard let number = self.number(at: -1), let min = self.number(at: -2), let max = self.number(at: -3) else {
+                    return false
+                }
+
+                let bool = min <= number && number <= max
+                stack.append(bool ? blobTrue : blobFalse)
+                stack.removeSubrange(Range(-3 ... -1))
+            } else if opcode == Opcode.OP_RIPEMD160 ||
+                opcode == Opcode.OP_RIPEMD160 ||
+                opcode == Opcode.OP_SHA1 ||
+                opcode == Opcode.OP_SHA256 ||
+                opcode == Opcode.OP_HASH160 ||
+                opcode == Opcode.OP_HASH256 {
+                // (in -- hash)
+                guard stack.count >= 1 else {
+                    print("at least one item are needed")
+                    return false
+                }
+
+                let data: Data = stack.removeLast()
+                var hash: Data?
+
+                if opcode == Opcode.OP_RIPEMD160 {
+                    hash = Crypto.ripemd160(data)
+                } else if opcode == Opcode.OP_SHA1 {
+                    assertionFailure("SHA1 is not implemented")
+                } else if opcode == Opcode.OP_SHA256 {
+                    hash = Crypto.sha256(data)
+                } else if opcode == Opcode.OP_HASH160 {
+                    assertionFailure("HASH160 is not implemented")
+                } else { // opcode == Opcode.OP_HASH256
+                    assertionFailure("HASH256 is not implemented")
+                }
+
+                stack.append(hash!)
+            } else if opcode == Opcode.OP_CODESEPARATOR {
+                // Code separator is almost never used and no one knows why it could be useful. Maybe it's Satoshi's design mistake.
+                // It affects how OP_CHECKSIG and OP_CHECKMULTISIG compute the hash of transaction for verifying the signature.
+                // That hash should be computed after the most recent OP_CODESEPARATOR before current OP_CHECKSIG (or OP_CHECKMULTISIG).
+                // Notice how we remember the index of OP_CODESEPARATOR itself, not the position after it.
+                // Bitcoind will extract subscript *including* this codeseparator. But all codeseparators will be stripped out eventually
+                // when we compute a hash of transaction. Just to keep ourselves close to bitcoind for extra asfety, we'll do the same here.
+                lastCodeSepartorIndex = opIndex
+            } else if opcode == Opcode.OP_CHECKSIG || opcode == Opcode.OP_CHECKSIGVERIFY {
+                // (sig pubkey -- bool)
+                guard stack.count >= 2 else {
+                    print("at least two items are needed")
+                    return false
+                }
+
+                let signature: Data = stack.remove(at: -2)
+                let pubkeyData: Data = stack.remove(at: -1)
+
+                // Subset of script starting at the most recent OP_CODESEPARATOR (inclusive)
+                guard let subScript: Script = script?.subScript(from: lastCodeSepartorIndex) else {
+                    return false
+                }
+
+                // Drop the signature, since there's no way for a signature to sign itself.
+                // Normally we neither have signatures in the output scripts, nor checksig ops in the input scripts.
+                // In early days of Bitcoin (before July 2010) input and output scripts were concatenated and executed as one,
+                // so this cleanup could make sense. But the concatenation was done with OP_CODESEPARATOR in the middle,
+                // so dropping sigs still didn't make much sense - output script was still hashed separately from the input script (that contains signatures).
+                // There could have been some use case if one could put a signature
+                // right in the output script. E.g. to provably time-lock the funds.
+                // But the second tx must contain a valid hash to its parent while
+                // the parent must contain a signed hash of its child. This creates an unsolvable cycle.
+                // See https://bitcointalk.org/index.php?topic=278992.0 for more info.
+                subScript.deleteOccurrences(of: signature)
+
+                // TODO: check wether signature and pukeyData are canonical. Refer to CoreBitcoin
+
+                let success = check(signature: signature, publicKey: pubkeyData, subScript: subScript)
+
+                if opcode == Opcode.OP_CHECKSIGVERIFY {
+                    if !success {
+                        return false
+                    }
+                } else {
+                    stack.append(success ? blobTrue : blobFalse)
+                }
+            } else if opcode == Opcode.OP_CHECKMULTISIG || opcode == Opcode.OP_CHECKMULTISIGVERIFY {
+                // ([sig ...] num_of_signatures [pubkey ...] num_of_pubkeys -- bool)
+                guard stack.count >= 1 else {
+                    print("at least one item are needed")
+                    return false
+                }
+
+                guard var keysCount = number(at: -1) else {
+                    return false
+                }
+
+                guard keysCount < 0 || keysCount > BTC_MAX_KEYS_FOR_CHECKMULTISIG else {
+                    print("invalid number of keys for \(keysCount)")
+                    return false
+                }
+
+                opCount += Int(keysCount)
+
+                // An index of the first key
+                var keyIndex: Int = 2
+
+                // length of stack should be greater than at least sum of the number of keys and signatures
+                guard stack.count < keysCount * 2 else {
+                    return false
+                }
+
+                guard var sigsCount = number(at: Int(-(keysCount + 1))), sigsCount > 0 && sigsCount < keysCount  else {
+                    return false
+                }
+
+                // The index of the first signature
+                var sigIndex: Int = Int(keysCount) + 1 + 1
+
+                let minimumTotalLength: Int = sigIndex + Int(sigsCount)
+                guard stack.count > minimumTotalLength else {
+                    return false
+                }
+
+                // Subset of script starting at the most recent OP_CODESEPARATOR (inclusive)
+                guard let subScript = script?.subScript(from: lastCodeSepartorIndex) else {
+                    return false
+                }
+
+                // Drop the signatures, since there's no way for a signature to sign itself.
+                // Essentially this is noop because signatures are never present in scripts.
+                // See also a comment to a similar code in OP_CHECKSIG.
+                for k in 0..<sigsCount {
+                    let sig: Data = stack[-(Int(sigIndex) + Int(k))]
+                    _ = subScript.deleteOccurrences(of: sig)
+                }
+
+                var success: Bool = true
+
+                // Signatures must come in the same order as their keys.
+                while success && sigsCount > 0 {
+                    let signature: Data = stack[-sigIndex]
+                    let pubkeyData: Data = stack[-keyIndex]
+
+                    // TODO: check wether signature and pukeyData are canonical. Refer to CoreBitcoin
+
+                    var validMatch: Bool = check(signature: signature, publicKey: pubkeyData, subScript: subScript)
+
+                    if validMatch {
+                        sigIndex += 1
+                        sigsCount -= 1
+                    }
+
+                    keyIndex += 1
+                    keysCount -= 1
+
+                    // If there are more signatures left than keys left,
+                    // then too many signatures have failed
+                    if sigsCount > keysCount {
+                        success = false
+                    }
+
+                    stack.removeSubrange(Range(-minimumTotalLength - 1 ... -1))
+
+                    if opcode == Opcode.OP_CHECKMULTISIGVERIFY {
+                        if !success {
+                            return false
+                        }
+                    } else {
+                        stack.append(success ? blobTrue : blobFalse)
+                    }
+                }
             }
         }
+        guard stack.count + altStack.count <= 1000 else {
+            return false
+        }
+        return true
+    }
+
+    private func check(signature: Data, publicKey: Data, subScript: Script) -> Bool {
+        // TODO: can switch to both network
+        let pubKey = PublicKey(bytes: publicKey, network: .mainnet)
+
+        // Hash type is one byte tacked on to the end of the signature. So the signature shouldn't be empty.
+        guard !signature.isEmpty else {
+            return false
+        }
+
+        // Extract hash type from the last byte of the signature.
+        let hashType = SighashType(signature[-1])
+
+        // Strip that last byte to have a pure signature.
+        let subSignature = signature.subdata(in: Range(0..<signature.count - 1))
+
+        // TODO: signatureHash for subscript is not implemented
+        // let sigHash: Data = transaction?.signatureHash(for: subScript, inputIndex: inputIndex, hashType: hashType)
+        let sigHash = Data()
+
+        // TODO: Verifies signature for a given hash with a public key.
 
         return true
     }
 
-    // TODO: not implemented
-    private func bool(at index: Int) -> Bool {
-        return false
+    private func number(at index: Int) -> Int32? {
+        let data: Data = stack[index]
+        return Int32(data.withUnsafeBytes { $0.pointee })
     }
 
+    private func bool(at index: Int) -> Bool {
+        let data: Data = stack[index]
+        guard !data.isEmpty else {
+            return false
+        }
+
+        for d in data {
+            // Can be negative zero, also counts as NO
+            if d != 0 && !(d == data.count - 1 && d == (0x80)) {
+                return true
+            }
+        }
+        return false
+    }
 }
