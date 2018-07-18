@@ -75,6 +75,7 @@
 		CF432AFC20F25E0000AD4020 /* TestHelpersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF432AFB20F25E0000AD4020 /* TestHelpersTests.swift */; };
 		CF432B0020F38ACD00AD4020 /* Opcode.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF432AFF20F38ACD00AD4020 /* Opcode.swift */; };
 		CF432B0220F3EB4F00AD4020 /* ScriptChunk.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF432B0120F3EB4F00AD4020 /* ScriptChunk.swift */; };
+		CF432B0420F6684900AD4020 /* ScriptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF432B0320F6684900AD4020 /* ScriptTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -160,6 +161,7 @@
 		CF432AFB20F25E0000AD4020 /* TestHelpersTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestHelpersTests.swift; sourceTree = "<group>"; };
 		CF432AFF20F38ACD00AD4020 /* Opcode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Opcode.swift; sourceTree = "<group>"; };
 		CF432B0120F3EB4F00AD4020 /* ScriptChunk.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptChunk.swift; sourceTree = "<group>"; };
+		CF432B0320F6684900AD4020 /* ScriptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -223,6 +225,7 @@
 				CF432AF920F222B400AD4020 /* AddressFactoryTests.swift */,
 				CF432AF320F0DFAC00AD4020 /* Bech32Tests.swift */,
 				CF432AFB20F25E0000AD4020 /* TestHelpersTests.swift */,
+				CF432B0320F6684900AD4020 /* ScriptTests.swift */,
 				147494D7201F9A29006D1CF8 /* Info.plist */,
 			);
 			path = BitcoinKitTests;
@@ -530,6 +533,7 @@
 				CF432AFA20F222B400AD4020 /* AddressFactoryTests.swift in Sources */,
 				CF432AF620F0ED4500AD4020 /* AddressTests.swift in Sources */,
 				CF432AFC20F25E0000AD4020 /* TestHelpersTests.swift in Sources */,
+				CF432B0420F6684900AD4020 /* ScriptTests.swift in Sources */,
 				CF432AF420F0DFAC00AD4020 /* Bech32Tests.swift in Sources */,
 				CF432AF220F0CF9100AD4020 /* Base58Tests.swift in Sources */,
 				2949920420F22A1500D078B6 /* TestHelpers.swift in Sources */,

@@ -156,7 +156,118 @@ public struct ScriptChunk {
         return scriptData   // ToDo
     }
 
+//    + (BTCScriptChunk*) parseChunkFromData:(NSData*)scriptData offset:(NSUInteger)offset {
     public static func parseChunkFromData(scriptData: Data, offset: Int) -> ScriptChunk? {
+//    // Data should fit at least one opcode.
+//    if (scriptData.length < (offset + 1)) return nil;
+        guard scriptData.count >= (offset + 1) else {
+            return nil
+        }
+//
+//    const uint8_t* bytes = ((const uint8_t*)[scriptData bytes]);
+//    BTCOpcode opcode = bytes[offset];
+        let opcode = scriptData[offset]
+
+//        if (opcode <= OP_PUSHDATA4) {
+//            // push data opcode
+//            int length = (int)scriptData.length;
+//
+//            BTCScriptChunk* chunk = [[BTCScriptChunk alloc] init];
+//            chunk.scriptData = scriptData;
+        if opcode <= Opcode.OP_PUSHDATA4 {
+            let count = scriptData.count
+
+            var chunk: ScriptChunk = ScriptChunk(scriptData: scriptData)
+
+//            if (opcode < OP_PUSHDATA1) {
+//                uint8_t dataLength = opcode;
+//                NSUInteger chunkLength = sizeof(opcode) + dataLength;
+//
+//                if (offset + chunkLength > length) return nil;
+//
+//                chunk.range = NSMakeRange(offset, chunkLength);
+//            }
+            if opcode < Opcode.OP_PUSHDATA1 {
+                let dataLength = opcode
+                let chunkLength = MemoryLayout.size(ofValue: opcode) + Int(dataLength)
+
+                guard offset + chunkLength <= count else {
+                    return nil
+                }
+                chunk.range = Range(offset...(offset + chunkLength - 1))
+
+//                else if (opcode == OP_PUSHDATA1) {
+//                    uint8_t dataLength;
+//
+//                    if (offset + sizeof(dataLength) > length) return nil;
+//
+//                    memcpy(&dataLength, bytes + offset + sizeof(opcode), sizeof(dataLength));
+//
+//                    NSUInteger chunkLength = sizeof(opcode) + sizeof(dataLength) + dataLength;
+//
+//                    if (offset + chunkLength > length) return nil;
+//
+//                    chunk.range = NSMakeRange(offset, chunkLength);
+//                }
+            } else if opcode == Opcode.OP_PUSHDATA1 {
+                var dataLength = UInt8()
+                guard offset + MemoryLayout.size(ofValue: dataLength) <= count else {
+                    return nil
+                }
+                _ = scriptData.withUnsafeBytes {
+                    memcpy(&dataLength, $0 + offset + MemoryLayout.size(ofValue: opcode), MemoryLayout.size(ofValue: dataLength))
+                }
+                let chunkLength = MemoryLayout.size(ofValue: opcode) + MemoryLayout.size(ofValue: dataLength) + Int(dataLength)
+                guard offset + chunkLength <= count else {
+                    return nil
+                }
+                chunk.range = Range(offset...(offset + chunkLength - 1))
+            } else if opcode == Opcode.OP_PUSHDATA2 {
+                var dataLength = UInt16()
+                guard offset + MemoryLayout.size(ofValue: dataLength) <= count else {
+                    return nil
+                }
+                _ = scriptData.withUnsafeBytes {
+                    memcpy(&dataLength, $0 + offset + MemoryLayout.size(ofValue: opcode), MemoryLayout.size(ofValue: dataLength))
+                }
+                dataLength = CFSwapInt16LittleToHost(dataLength)
+                let chunkLength = MemoryLayout.size(ofValue: opcode) + MemoryLayout.size(ofValue: dataLength) + Int(dataLength)
+                guard offset + chunkLength <= count else {
+                    return nil
+                }
+                chunk.range = Range(offset...(offset + chunkLength - 1))
+            } else if opcode == Opcode.OP_PUSHDATA4 {
+                var dataLength = UInt32()
+                guard offset + MemoryLayout.size(ofValue: dataLength) <= count else {
+                    return nil
+                }
+                _ = scriptData.withUnsafeBytes {
+                    memcpy(&dataLength, $0 + offset + MemoryLayout.size(ofValue: opcode), MemoryLayout.size(ofValue: dataLength))
+                }
+                // QUESTION: dataLength = CFSwapInt16LittleToHost(dataLength)になっているがInt32の間違い？
+                dataLength = CFSwapInt32LittleToHost(dataLength)
+                let chunkLength = MemoryLayout.size(ofValue: opcode) + MemoryLayout.size(ofValue: dataLength) + Int(dataLength)
+                guard offset + chunkLength <= count else {
+                    return nil
+                }
+                chunk.range = Range(offset...(offset + chunkLength - 1))
+            }
+            return chunk
+
+//        else {
+//            // simple opcode
+//            BTCScriptChunk* chunk = [[BTCScriptChunk alloc] init];
+//            chunk.scriptData = scriptData;
+//            chunk.range = NSMakeRange(offset, sizeof(opcode));
+//            return chunk;
+//        }
+        } else {
+            let chunk = ScriptChunk(scriptData: scriptData, range: Range(offset...offset + MemoryLayout.size(ofValue: opcode) - 1))
+            return chunk
+        }
+    }
+
+    public static func parseChunkFromData2(scriptData: Data, offset: Int) -> ScriptChunk? {
         // Data should fit at least one opcode.
         guard scriptData.count >= (offset + 1) else {
             return nil

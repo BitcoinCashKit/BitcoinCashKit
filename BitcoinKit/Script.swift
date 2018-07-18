@@ -24,7 +24,7 @@
 
 import Foundation
 
-public class Script2 {
+public class Script {
     public let chunks: [ScriptChunk] // An array of NSData objects (pushing data) or NSNumber objects (containing opcodes)
 
     // Cached serialized representations for -data and -string methods.
@@ -40,7 +40,7 @@ public class Script2 {
     //    return _data;
     //    }
     // ToDo: キャッシュしたい
-    public var data: Data? {
+    public var data: Data {
         var md = Data()
         for chunk in self.chunks {
             md += chunk.chunkData
@@ -51,17 +51,22 @@ public class Script2 {
     public var multisigSignaturesRequired: Int? // Multisignature script attributes.
     public var multisigPublicKeys: [PublicKey]? // If multisig script is not detected, both are NULL.
 
+    init() {
+        self.chunks = [ScriptChunk]()
+    }
+
     init(chunks: [ScriptChunk]) {
         self.chunks = chunks
     }
 
-    init?(data: Data) {
+     convenience init(data: Data) {
         // It's important to keep around original data to correctly identify the size of the script for BTC_MAX_SCRIPT_SIZE check
         // and to correctly calculate hash for the signature because in BitcoinQT scripts are not re-serialized/canonicalized.
-        guard let chunks = Script2.parseData(data) else {
-            return nil
+        guard let chunks = Script.parseData(data) else {
+            self.init()
+            return
         }
-        self.chunks = chunks
+        self.init(chunks: chunks)
     }
 
     convenience init?(hex: String) {
@@ -69,16 +74,13 @@ public class Script2 {
     }
 
     convenience init?(string: String) {
-        guard let chunks = Script2.parseString(string) else {
+        guard let chunks = Script.parseString(string) else {
             return nil
         }
         self.init(chunks: chunks)
     }
 
     convenience init?(address: Address) {
-//        // Make sure we use a public address (WIF privkey is converted to usual P2PKH address).
-//        address = [address publicAddress];
-
 //        if ([address isKindOfClass:[BTCPublicKeyAddress class]]) {
 //            // OP_DUP OP_HASH160 <hash> OP_EQUALVERIFY OP_CHECKSIG
 //            NSMutableData* resultData = [NSMutableData data];
@@ -92,39 +94,34 @@ public class Script2 {
 //            [resultData appendData:address.data];
 //
 //            BTCOpcode suffix[] = {OP_EQUALVERIFY, OP_CHECKSIG};
-//            [resultData appendBytes:suffix length:sizeof(suffix)];
+//            [resultData append Bytes:suffix length:sizeof(suffix)];
 //
 //            return [self initWithData:resultData];
 //        }
-
-        // ToDo: check wether address is PublicKeyAddress
-        if true {
+        if address.type == .pubkeyHash {
             var resultData: Data = Data()
 
-            let prefix: [UInt8] = [Opcode.OP_DUP, Opcode.OP_HASH160]
-            resultData.append(contentsOf: prefix.map { UInt8($0) })
+            resultData += Opcode.OP_DUP
+            resultData += Opcode.OP_HASH160
 
             let length = VarInt(address.data.count)
-            resultData.append(length.serialized())
+            resultData += length.serialized()
+            resultData += address.data
 
-            let suffix: [UInt8] = [Opcode.OP_EQUALVERIFY, Opcode.OP_CHECKSIG]
-            resultData.append(contentsOf: suffix.map { UInt8($0) })
-
+            resultData += Opcode.OP_EQUALVERIFY
+            resultData += Opcode.OP_CHECKSIG
             self.init(data: resultData)
 
-        // ToDo: check wether address is ScriptHashAddress
-        } else if true {
-            // 上とはOpcodeの配列が異なるだけです
+        } else if address.type == .scriptHash {
             var resultData: Data = Data()
 
-            let prefix: [UInt8] = [Opcode.OP_HASH160]
-            resultData.append(contentsOf: prefix.map { UInt8($0) })
+            resultData += Opcode.OP_HASH160
 
             let length = VarInt(address.data.count)
-            resultData.append(length.serialized())
+            resultData += length.serialized()
+            resultData += address.data
 
-            let suffix: [UInt8] = [Opcode.OP_EQUAL]
-            resultData.append(contentsOf: suffix.map { UInt8($0) })
+            resultData += Opcode.OP_EQUAL
 
             self.init(data: resultData)
         } else {
@@ -216,8 +213,8 @@ public class Script2 {
 //    - (NSString*) hex {
 //    return BTCHexFromData(self.data);
 //    }
-    public var hex: String? {
-        return self.data?.hex
+    public var hex: String {
+        return self.data.hex
     }
 
 //    - (NSString*) string {
@@ -548,7 +545,7 @@ public class Script2 {
             opIndex += 1
         }
     }
-    
+
 //    - (BTCAddress*) standardAddress {
 //    if ([self isPayToPublicKeyHashScript]) {
 //    if (_chunks.count != 5) return nil;
@@ -575,17 +572,18 @@ public class Script2 {
                 return nil
             }
             let dataChunk = chunk(at: 2)
-            
+
             if !dataChunk.isOpcode && dataChunk.range.count == 21 {
                 // return [BTCPublicKeyAddress addressWithData:dataChunk.pushdata];
                 // QUESTION: BTCPublicKeyAddressでinitしているけど、dataChunk.pushdataだけではnetworkが分からない
+
             }
         } else if isPayToScriptHashScript {
             guard chunks.count == 3 else {
                 return nil
             }
             let dataChunk = chunk(at: 1)
-            
+
             if !dataChunk.isOpcode && dataChunk.range.count == 21 {
                 // return [BTCScriptHashAddress addressWithData:dataChunk.pushdata];
                 // QUESTION: BTCScriptHashAddressでinitしているけど、dataChunk.pushdataだけではnetworkが分からない
@@ -593,7 +591,7 @@ public class Script2 {
         }
         return nil
     }
-    
+
     // ToDo: BTCScriptHashAddressとBTCScriptHashAddressTestnetというクラスが必要
     // そもそも、そのようなクラスを作るか問題
     /*
@@ -612,7 +610,6 @@ public class Script2 {
     return [BTCScriptHashAddressTestnet addressWithData:BTCHash160(self.data)];
     }
     */
-
 
 //    - (BTCScriptChunk*) chunkAtIndex:(NSInteger)index {
 //    BTCScriptChunk* chunk = _chunks[index < 0 ? (_chunks.count + index) : index];
@@ -675,7 +672,7 @@ public class Script2 {
 
 }
 
-public struct Script {
+public struct KishikawaScript {
     // Opcode
     public static let OP_DUP: UInt8 = 0x76
     public static let OP_HASH160: UInt8 = 0xa9
