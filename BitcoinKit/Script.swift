@@ -491,21 +491,12 @@ public class Script {
         }
         return chunk.pushedData
     }
-}
-
-public struct KishikawaScript {
-    // Opcode
-    public static let OP_DUP: UInt8 = 0x76
-    public static let OP_HASH160: UInt8 = 0xa9
-    public static let OP_0: UInt8 = 0x14
-    public static let OP_EQUALVERIFY: UInt8 = 0x88
-    public static let OP_CHECKSIG: UInt8 = 0xac
 
     // Standard Transaction to Bitcoin address (pay-to-pubkey-hash)
     // scriptPubKey: OP_DUP OP_HASH160 OP_0 <pubKeyHash> OP_EQUALVERIFY OP_CHECKSIG
     public static func buildPublicKeyHashOut(pubKeyHash: Data) -> Data {
-        let tmp: Data = Data() + OP_DUP + OP_HASH160 + OP_0 + pubKeyHash + OP_EQUALVERIFY
-        return tmp + OP_CHECKSIG
+        let tmp: Data = Data() + Opcode.OP_DUP + Opcode.OP_HASH160 + Opcode.OP_0 + pubKeyHash + Opcode.OP_EQUALVERIFY
+        return tmp + Opcode.OP_CHECKSIG
     }
 
     public static func buildPublicKeyUnlockingScript(signature: Data, pubkey: PublicKey, hashType: SighashType) -> Data {
@@ -517,8 +508,8 @@ public struct KishikawaScript {
 
     public static func isPublicKeyHashOut(_ script: Data) -> Bool {
         return script.count == 25 &&
-            script[0] == OP_DUP && script[1] == OP_HASH160 && script[2] == OP_0 &&
-            script[23] == OP_EQUALVERIFY && script[24] == OP_CHECKSIG
+            script[0] == Opcode.OP_DUP && script[1] == Opcode.OP_HASH160 && script[2] == Opcode.OP_0 &&
+            script[23] == Opcode.OP_EQUALVERIFY && script[24] == Opcode.OP_CHECKSIG
     }
 
     public static func getPublicKeyHash(from script: Data) -> Data {

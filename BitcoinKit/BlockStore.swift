@@ -364,8 +364,8 @@ public class SQLiteBlockStore: BlockStore {
         try execute { sqlite3_bind_int64(stmt, 2, sqlite3_int64(bitPattern: output.scriptLength.underlyingValue)) }
         try execute { output.lockingScript.withUnsafeBytes { sqlite3_bind_blob(stmt, 3, $0, Int32(output.lockingScript.count), SQLITE_TRANSIENT) } }
         try execute { txId.withUnsafeBytes { sqlite3_bind_blob(stmt, 4, $0, Int32(txId.count), SQLITE_TRANSIENT) } }
-        if KishikawaScript.isPublicKeyHashOut(output.lockingScript) {
-            let pubKeyHash = KishikawaScript.getPublicKeyHash(from: output.lockingScript)
+        if Script.isPublicKeyHashOut(output.lockingScript) {
+            let pubKeyHash = Script.getPublicKeyHash(from: output.lockingScript)
             let address = publicKeyHashToAddress(Data([network.pubkeyhash]) + pubKeyHash)
             try execute { sqlite3_bind_text(stmt, 6, address, -1, nil) }
         }

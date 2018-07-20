@@ -77,6 +77,7 @@
 		CF432B0220F3EB4F00AD4020 /* ScriptChunk.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF432B0120F3EB4F00AD4020 /* ScriptChunk.swift */; };
 		CF432B0420F6684900AD4020 /* ScriptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF432B0320F6684900AD4020 /* ScriptTests.swift */; };
 		CF432B0620F848A700AD4020 /* ScriptMachine.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF432B0520F848A700AD4020 /* ScriptMachine.swift */; };
+		CFA2906A2100565B001A1BAB /* ScriptMachineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFA290692100565B001A1BAB /* ScriptMachineTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -164,6 +165,7 @@
 		CF432B0120F3EB4F00AD4020 /* ScriptChunk.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptChunk.swift; sourceTree = "<group>"; };
 		CF432B0320F6684900AD4020 /* ScriptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptTests.swift; sourceTree = "<group>"; };
 		CF432B0520F848A700AD4020 /* ScriptMachine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptMachine.swift; sourceTree = "<group>"; };
+		CFA290692100565B001A1BAB /* ScriptMachineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptMachineTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -221,6 +223,7 @@
 			isa = PBXGroup;
 			children = (
 				147494D5201F9A29006D1CF8 /* BitcoinKitTests.swift */,
+				CFA290692100565B001A1BAB /* ScriptMachineTests.swift */,
 				2949920320F22A1500D078B6 /* TestHelpers.swift */,
 				CF432AF120F0CF9100AD4020 /* Base58Tests.swift */,
 				CF432AF520F0ED4500AD4020 /* AddressTests.swift */,
@@ -534,6 +537,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				147494D6201F9A29006D1CF8 /* BitcoinKitTests.swift in Sources */,
+				CFA2906A2100565B001A1BAB /* ScriptMachineTests.swift in Sources */,
 				CF432AFA20F222B400AD4020 /* AddressFactoryTests.swift in Sources */,
 				CF432AF620F0ED4500AD4020 /* AddressTests.swift in Sources */,
 				CF432AFC20F25E0000AD4020 /* TestHelpersTests.swift in Sources */,

@@ -21,7 +21,6 @@
 //  The original file was from the bitcoinj project (https://github.com/kishikawakatsumi/BitcoinKit).
 //
 
-
 import Foundation
 
 public struct Opcode {

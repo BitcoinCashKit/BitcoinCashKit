@@ -22,6 +22,7 @@
 //
 
 import Foundation
+import secp256k1
 
 enum ScriptVerification {
     case StrictEncoding // enforce strict conformance to DER and SEC2 for signatures and pubkeys (aka SCRIPT_VERIFY_STRICTENC)
@@ -810,7 +811,8 @@ class ScriptMachine {
 
                 // TODO: check wether signature and pukeyData are canonical. Refer to CoreBitcoin
 
-                let success = check(signature: signature, publicKey: pubkeyData, subScript: subScript)
+                let transactionOutput = TransactionOutput()
+                let success = check(signature: signature, publicKey: pubkeyData, utxoToSign: transactionOutput)
 
                 if opcode == Opcode.OP_CHECKSIGVERIFY {
                     if !success {
@@ -879,7 +881,8 @@ class ScriptMachine {
 
                     // TODO: check wether signature and pukeyData are canonical. Refer to CoreBitcoin
 
-                    var validMatch: Bool = check(signature: signature, publicKey: pubkeyData, subScript: subScript)
+                    let transactionOutput = TransactionOutput()
+                    var validMatch: Bool = check(signature: signature, publicKey: pubkeyData, utxoToSign: transactionOutput)
 
                     if validMatch {
                         sigIndex += 1
@@ -913,7 +916,7 @@ class ScriptMachine {
         return true
     }
 
-    private func check(signature: Data, publicKey: Data, subScript: Script) -> Bool {
+    public func check(signature: Data, publicKey: Data, utxoToSign: TransactionOutput) -> Bool {
         // TODO: can switch to both network
         let pubKey = PublicKey(bytes: publicKey, network: .mainnet)
 
@@ -923,16 +926,38 @@ class ScriptMachine {
         }
 
         // Extract hash type from the last byte of the signature.
-        let hashType = SighashType(signature[-1])
+        print("signature", signature.hex)
+        let hashType = SighashType(signature.last!)
+        print("hashType", hashType)
 
         // Strip that last byte to have a pure signature.
-        let subSignature = signature.subdata(in: Range(0..<signature.count - 1))
+        let pureSignature = signature.subdata(in: Range(0..<signature.count - 1))
+        print("pureSignature", pureSignature.hex, pureSignature)
 
-        // TODO: signatureHash for subscript is not implemented
-        // let sigHash: Data = transaction?.signatureHash(for: subScript, inputIndex: inputIndex, hashType: hashType)
-        let sigHash = Data()
+        guard let transaction = self.transaction, let inputIndex = self.inputIndex else {
+            return false
+        }
 
-        // TODO: Verifies signature for a given hash with a public key.
+        let sighash: Data = transaction.signatureHash(for: utxoToSign, inputIndex: inputIndex, hashType: hashType)
+        print("sighash", sighash.hex, sighash)
+
+        let ctx2 = secp256k1_context_create(UInt32(SECP256K1_CONTEXT_NONE))
+
+//        let normalized = sighash.withUnsafeBytes { secp256k1_ecdsa_signature_normalize(ctx2!, nil, $0) }
+//        print("normalized", normalized)
+
+        let ctx = secp256k1_context_create(UInt32(SECP256K1_CONTEXT_VERIFY))!
+
+        let status = sighash.withUnsafeBytes { (uint8Ptr: UnsafePointer<UInt8>) in
+            pubKey.raw.withUnsafeBytes { pubkeyPtr in pureSignature.withUnsafeBytes { secp256k1_ecdsa_verify(ctx, $0, uint8Ptr, pubkeyPtr) }
+            }
+        }
+
+        print("STATUS", status)
+
+        guard status == 1 else {
+            return false
+        }
 
         return true
     }
