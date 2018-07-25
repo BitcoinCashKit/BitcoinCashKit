@@ -33,7 +33,7 @@ public struct PublicKey {
     public let network: Network
     public let isCompressed: Bool
 
-    public init(privateKey: PrivateKey) {
+    init(privateKey: PrivateKey) {
         self.network = privateKey.network
         self.isCompressed = privateKey.isPublicKeyCompressed
         self.raw = PublicKey.from(privateKey: privateKey.raw, compression: privateKey.isPublicKeyCompressed)
