@@ -10,6 +10,10 @@ Release notes are [here](CHANGELOG.md).
 
 <img src="https://user-images.githubusercontent.com/40610/35793683-0d497b4e-0a96-11e8-8e49-2b0ce09211a4.png" width="320px" />&nbsp;<img src="https://user-images.githubusercontent.com/40610/35793685-0da36a32-0a96-11e8-855b-ecbc3ce1474c.png" width="320px" />
 
+## Authors & Maintainers
+- [usatie](https://github.com/usatie)
+- [akifuji](https://github.com/akifuj)
+
 Features
 --------
 
