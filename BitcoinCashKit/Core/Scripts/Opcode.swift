@@ -138,7 +138,7 @@ public struct OpCode {
 
     public static let OP_BOOLAND: OpCodeProtocol = OpExample()
     public static let OP_BOOLOR: OpCodeProtocol = OpExample()
-    public static let OP_NUMEQUAL: OpCodeProtocol = OpExample()
+    public static let OP_NUMEQUAL: OpCodeProtocol = OpNumEqual() // // Returns 1 if the numbers are equal, 0 otherwise.
     public static let OP_NUMEQUALVERIFY: OpCodeProtocol = OpExample()
     public static let OP_NUMNOTEQUAL: OpCodeProtocol = OpExample()
     public static let OP_LESSTHAN: OpCodeProtocol = OpExample()
