@@ -142,7 +142,7 @@ public struct OpCode {
     public static let OP_NUMEQUALVERIFY: OpCodeProtocol = OpExample()
     public static let OP_NUMNOTEQUAL: OpCodeProtocol = OpExample()
     public static let OP_LESSTHAN: OpCodeProtocol = OpExample()
-    public static let OP_GREATERTHAN: OpCodeProtocol = OpExample()
+    public static let OP_GREATERTHAN: OpCodeProtocol = OpGreaterThan() // Returns 1 if x1 is greater than x2, 0 otherwise.
     public static let OP_LESSTHANOREQUAL: OpCodeProtocol = OpExample()
     public static let OP_GREATERTHANOREQUAL: OpCodeProtocol = OpExample()
     public static let OP_MIN: OpCodeProtocol = OpExample()
