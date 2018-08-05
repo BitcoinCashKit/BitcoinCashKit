@@ -36,7 +36,7 @@ public struct OpWithin: OpCodeProtocol {
         let x = try context.number(at: -3)
         let minValue = try context.number(at: -2)
         let maxValue = try context.number(at: -1)
-        let output: Int32 =  (x >= minValue && x < maxValue) ? 1 : 0
+        let output: Int32 =  (minValue <= x && x < maxValue) ? 1 : 0
         
         context.stack.removeLast()
         context.stack.removeLast()
