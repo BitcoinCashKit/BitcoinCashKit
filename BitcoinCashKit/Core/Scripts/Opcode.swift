@@ -144,7 +144,7 @@ public struct OpCode {
     public static let OP_LESSTHAN: OpCodeProtocol = OpExample()
     public static let OP_GREATERTHAN: OpCodeProtocol = OpExample()
     public static let OP_LESSTHANOREQUAL: OpCodeProtocol = OpExample()
-    public static let OP_GREATERTHANOREQUAL: OpCodeProtocol = OpExample()
+    public static let OP_GREATERTHANOREQUAL: OpCodeProtocol = OpGreaterThanOrEqual() // Returns 1 if x1 is greater than or equal to x2, 0 otherwise.
     public static let OP_MIN: OpCodeProtocol = OpExample()
     public static let OP_MAX: OpCodeProtocol = OpExample()
 
