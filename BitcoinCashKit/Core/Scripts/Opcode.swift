@@ -137,7 +137,7 @@ public struct OpCode {
     public static let OP_RSHIFT: OpCodeProtocol = OpExample() // Disabled opcode. If executed, transaction is invalid.
 
     public static let OP_BOOLAND: OpCodeProtocol = OpExample()
-    public static let OP_BOOLOR: OpCodeProtocol = OpExample()
+    public static let OP_BOOLOR: OpCodeProtocol = OpBoolOr() // If a or b is not "" (null string), the output is 1. Otherwise 0.
     public static let OP_NUMEQUAL: OpCodeProtocol = OpExample()
     public static let OP_NUMEQUALVERIFY: OpCodeProtocol = OpExample()
     public static let OP_NUMNOTEQUAL: OpCodeProtocol = OpExample()
