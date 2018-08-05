@@ -148,7 +148,7 @@ public struct OpCode {
     public static let OP_MIN: OpCodeProtocol = OpExample()
     public static let OP_MAX: OpCodeProtocol = OpExample()
 
-    public static let OP_WITHIN: OpCodeProtocol = OpExample()
+    public static let OP_WITHIN: OpCodeProtocol = OpWithin() // Returns 1 if x is within the specified range (left-inclusive), 0 otherwise.
 
     // Crypto
     public static let OP_RIPEMD160: OpCodeProtocol = OpExample()
