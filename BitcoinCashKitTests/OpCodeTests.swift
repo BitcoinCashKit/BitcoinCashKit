@@ -477,6 +477,78 @@ class OpCodeTests: XCTestCase {
         }
     }
 
+    func testOpCheckSigVerify() {
+        let opcode = OpCode.OP_CHECKSIGVERIFY
+
+        // Transaction in testnet3
+        // https://api.blockcypher.com/v1/btc/test3/txs/0189910c263c4d416d5c5c2cf70744f9f6bcd5feaf0b149b02e5d88afbe78992
+        let prevTxID = "1524ca4eeb9066b4765effd472bc9e869240c4ecb5c1ee0edb40f8b666088231"
+        let hash = Data(Data(hex: prevTxID)!.reversed())
+        let index: UInt32 = 1
+        let outpoint = TransactionOutPoint(hash: hash, index: index)
+
+        let balance: Int64 = 169012961
+
+        let privateKey = try! PrivateKey(wif: "92pMamV6jNyEq9pDpY4f6nBy9KpV2cfJT4L5zDUYiGqyQHJfF1K")
+
+        let fromPublicKey = privateKey.publicKey()
+
+        let subScript = Data(hex: "76a9142a539adfd7aefcc02e0196b4ccf76aea88a1f47088ac")!
+        let inputForSign = TransactionInput(previousOutput: outpoint, signatureScript: subScript, sequence: UInt32.max)
+        let unsignedTx = Transaction(version: 1, inputs: [inputForSign], outputs: [], lockTime: 0)
+
+        // sign
+        let hashType: SighashType = SighashType.BTC.ALL
+        let utxoToSign = TransactionOutput(value: balance, lockingScript: subScript)
+        let _txHash = unsignedTx.signatureHash(for: utxoToSign, inputIndex: 0, hashType: hashType)
+        guard let signature: Data = try? Crypto.sign(_txHash, privateKey: privateKey) else {
+            XCTFail("Failed to sign tx.")
+            return
+        }
+
+        let sigData: Data = signature + UInt8(hashType)
+        let pubkeyData: Data = fromPublicKey.raw
+
+        // OP_CHECKSIGVERIFY success
+        do {
+            context = ScriptExecutionContext(
+                transaction: unsignedTx,
+                utxoToVerify: utxoToSign,
+                inputIndex: 0)
+            try context.pushToStack(sigData) // sigData
+            try context.pushToStack(pubkeyData) // pubkeyData
+            XCTAssertEqual(context.stack.count, 2)
+            try opcode.execute(context)
+            XCTAssertEqual(context.stack.count, 0)
+        } catch let error {
+            fail(with: opcode, error: error)
+        }
+
+        // OP_CHECKSIG fail
+        do {
+            context = ScriptExecutionContext(
+                transaction: Transaction(
+                    version: 1,
+                    inputs: [TransactionInput(
+                        previousOutput: TransactionOutPoint(hash: Data(), index: 0),
+                        signatureScript: Data(),
+                        sequence: 0)],
+                    outputs: [],
+                    lockTime: 0),
+                utxoToVerify: utxoToSign,
+                inputIndex: 0)
+            try context.pushToStack(sigData) // sigData
+            try context.pushToStack(pubkeyData) // pubkeyData
+            XCTAssertEqual(context.stack.count, 2)
+            try opcode.execute(context)
+        } catch OpCodeExecutionError.error("OP_CHECKSIGVERIFY failed.") {
+            // success
+            XCTAssertEqual(context.stack.count, 1)
+        } catch let error {
+            fail(with: opcode, error: error)
+        }
+    }
+
     func testOpInvalidOpCode() {
         let opcode = OpCode.OP_INVALIDOPCODE
         XCTAssertEqual(opcode.name, "OP_INVALIDOPCODE")
