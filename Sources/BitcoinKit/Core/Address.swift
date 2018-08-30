@@ -34,6 +34,14 @@ public protocol Address {
     var publicKey: Data? { get }
 }
 
+public extension Address {
+    var cashaddrWithoutScheme: String {
+        let prefix = "\(network.scheme):"
+        guard hasPrefix(prefix) else { return self }
+        return String(dropFirst(prefix.count))
+    }
+}
+
 public enum AddressError: Error {
     case invalid
     case invalidScheme
